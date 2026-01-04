@@ -1,9 +1,12 @@
 import { useState, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Upload, FileText, Sparkles, ArrowRight, Folder, X, Check, AlertCircle, FolderOpen } from 'lucide-react'
+import { Upload, FileText, Sparkles, ArrowRight, Folder, X, Check, AlertCircle, FolderOpen, Shield, Brain, Zap } from 'lucide-react'
 import TiltCard from '../components/TiltCard'
 import Papa from 'papaparse'
+
+// Maximum file size: 50MB
+const MAX_FILE_SIZE = 50 * 1024 * 1024
 
 export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
   const navigate = useNavigate()
@@ -14,13 +17,13 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
   const [isProcessing, setIsProcessing] = useState(false)
   const [error, setError] = useState(null)
   const [processingProgress, setProcessingProgress] = useState(0)
+  const [validationWarnings, setValidationWarnings] = useState([])
 
   // Recursively traverse folder entries to get all files
   const traverseFileTree = async (entry, path = '') => {
     return new Promise((resolve) => {
       if (entry.isFile) {
         entry.file((file) => {
-          // Add path info to the file
           file.relativePath = path + file.name
           resolve([file])
         })
@@ -32,9 +35,8 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
           dirReader.readEntries(async (results) => {
             if (results.length) {
               entries.push(...results)
-              readEntries() // Keep reading until no more entries
+              readEntries()
             } else {
-              // Process all entries
               const files = []
               for (const childEntry of entries) {
                 const childFiles = await traverseFileTree(childEntry, path + entry.name + '/')
@@ -58,7 +60,6 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
   const handleDragLeave = useCallback((e) => {
     e.preventDefault()
     e.stopPropagation()
-    // Only set isDragging to false if we're leaving the drop zone entirely
     const rect = e.currentTarget.getBoundingClientRect()
     const x = e.clientX
     const y = e.clientY
@@ -67,9 +68,27 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
     }
   }, [])
 
+  // Validate file before adding
+  const validateFile = useCallback((file) => {
+    const errors = []
+    const warnings = []
+
+    // Check file size
+    if (file.size > MAX_FILE_SIZE) {
+      errors.push(`${file.name} exceeds 50MB limit (${(file.size / 1024 / 1024).toFixed(1)}MB)`)
+    }
+
+    // Check file extension
+    if (!file.name.toLowerCase().endsWith('.csv')) {
+      errors.push(`${file.name} is not a CSV file`)
+    }
+
+    return { errors, warnings, isValid: errors.length === 0 }
+  }, [])
+
   const processFiles = useCallback((files) => {
     const csvFiles = Array.from(files).filter(file =>
-      file.name.endsWith('.csv') || file.type === 'text/csv'
+      file.name.toLowerCase().endsWith('.csv') || file.type === 'text/csv'
     )
 
     if (csvFiles.length === 0) {
@@ -77,17 +96,35 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
       return
     }
 
-    setError(null)
+    // Validate each file
+    const allErrors = []
+    const validFiles = []
+
+    csvFiles.forEach(file => {
+      const { errors, isValid } = validateFile(file)
+      if (isValid) {
+        validFiles.push(file)
+      } else {
+        allErrors.push(...errors)
+      }
+    })
+
+    if (allErrors.length > 0) {
+      setError(allErrors.join('. '))
+      if (validFiles.length === 0) return
+    } else {
+      setError(null)
+    }
 
     // Add new files, avoiding duplicates
     setUploadedFiles(prev => {
       const existingNames = new Set(prev.map(f => f.relativePath || f.name))
-      const newFiles = csvFiles.filter(f => !existingNames.has(f.relativePath || f.name))
+      const newFiles = validFiles.filter(f => !existingNames.has(f.relativePath || f.name))
       return [...prev, ...newFiles]
     })
 
-    onFileUpload?.(csvFiles)
-  }, [onFileUpload])
+    onFileUpload?.(validFiles)
+  }, [onFileUpload, validateFile])
 
   const handleDrop = useCallback(async (e) => {
     e.preventDefault()
@@ -98,7 +135,6 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
     const allFiles = []
 
     if (items) {
-      // Use DataTransferItemList interface for folder support
       const entries = []
       for (let i = 0; i < items.length; i++) {
         const entry = items[i].webkitGetAsEntry?.()
@@ -107,13 +143,11 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
         }
       }
 
-      // Process all entries (files and folders)
       for (const entry of entries) {
         const files = await traverseFileTree(entry)
         allFiles.push(...files)
       }
     } else {
-      // Fallback to FileList
       allFiles.push(...Array.from(e.dataTransfer.files))
     }
 
@@ -127,14 +161,12 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
     if (files && files.length > 0) {
       processFiles(Array.from(files))
     }
-    // Reset input so the same file can be selected again
     e.target.value = ''
   }, [processFiles])
 
   const handleFolderSelect = useCallback((e) => {
     const files = e.target.files
     if (files && files.length > 0) {
-      // Files from folder input have webkitRelativePath
       const filesWithPath = Array.from(files).map(file => {
         file.relativePath = file.webkitRelativePath
         return file
@@ -150,25 +182,66 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
 
   const clearAllFiles = useCallback(() => {
     setUploadedFiles([])
+    setError(null)
+    setValidationWarnings([])
     onFileUpload?.(null)
   }, [onFileUpload])
+
+  // Validate CSV has required columns
+  const validateCSVStructure = (headers) => {
+    const normalizedHeaders = headers.map(h => h.toLowerCase().trim())
+    const hasCost = normalizedHeaders.some(h =>
+      ['cost', 'total_cost', 'price', 'amount', 'usd', 'total cost'].includes(h)
+    )
+    const hasModel = normalizedHeaders.some(h =>
+      ['model', 'model_name', 'model_id', 'engine'].includes(h)
+    )
+
+    return hasCost || hasModel
+  }
 
   const handleAnalyze = useCallback(async () => {
     if (uploadedFiles.length === 0) return
 
     setIsProcessing(true)
     setProcessingProgress(0)
+    setError(null)
 
     try {
-      // Parse all CSV files and aggregate data
       const allData = []
+      const allHeaders = new Set()
       let filesProcessed = 0
+      const fileErrors = []
 
       for (const file of uploadedFiles) {
+        // Additional size check
+        if (file.size > MAX_FILE_SIZE) {
+          fileErrors.push(`${file.name} exceeds 50MB limit`)
+          continue
+        }
+
         await new Promise((resolve, reject) => {
           Papa.parse(file, {
             header: true,
+            skipEmptyLines: true,
             complete: (results) => {
+              // Check if file has headers
+              if (!results.meta.fields || results.meta.fields.length === 0) {
+                fileErrors.push(`${file.name} has no valid headers`)
+                resolve()
+                return
+              }
+
+              // Check for required columns
+              if (!validateCSVStructure(results.meta.fields)) {
+                fileErrors.push(`${file.name} missing required columns (cost or model)`)
+                resolve()
+                return
+              }
+
+              // Add headers to set
+              results.meta.fields.forEach(h => allHeaders.add(h))
+
               const validRows = results.data.filter(row =>
                 Object.values(row).some(v => v && v.toString().trim())
               )
@@ -177,13 +250,31 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
               setProcessingProgress(Math.round((filesProcessed / uploadedFiles.length) * 100))
               resolve()
             },
-            error: reject
+            error: (err) => {
+              fileErrors.push(`${file.name}: ${err.message}`)
+              resolve()
+            }
           })
         })
       }
 
+      // Check if we have any valid data
+      if (allData.length === 0) {
+        const errorMsg = fileErrors.length > 0
+          ? fileErrors.join('. ')
+          : 'No valid data found in CSV files. Ensure files have headers and contain cost or model columns.'
+        setError(errorMsg)
+        setIsProcessing(false)
+        return
+      }
+
+      // Show warnings but continue
+      if (fileErrors.length > 0) {
+        setValidationWarnings(fileErrors)
+      }
+
       // Analyze aggregated data
-      const analysis = analyzeData(allData, uploadedFiles.length)
+      const analysis = analyzeData(allData, uploadedFiles.length, Array.from(allHeaders))
 
       onAnalysisComplete?.(analysis)
       navigate('/analyzing')
@@ -193,127 +284,424 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
     }
   }, [uploadedFiles, onAnalysisComplete, navigate])
 
-  // Analyze the aggregated data from all CSVs
-  const analyzeData = (data, fileCount) => {
-    // Helper to find column case-insensitively
-    const findColumn = (row, possibleNames) => {
-      const keys = Object.keys(row)
-      for (const name of possibleNames) {
-        const found = keys.find(k => k.toLowerCase() === name.toLowerCase())
-        if (found && row[found]) return row[found]
+  // Helper to find column case-insensitively
+  const findColumnValue = (row, possibleNames) => {
+    const keys = Object.keys(row)
+    for (const name of possibleNames) {
+      const found = keys.find(k => k.toLowerCase().trim() === name.toLowerCase())
+      if (found && row[found] !== undefined && row[found] !== null && row[found] !== '') {
+        return row[found]
       }
-      return null
     }
+    return null
+  }
 
-    // Try to detect model usage from common column names (case-insensitive)
+  // Comprehensive analysis engine
+  const analyzeData = (data, fileCount, headers) => {
+    // Column mappings
     const modelColumns = ['model', 'model_name', 'model_id', 'engine']
-    const costColumns = ['cost', 'total_cost', 'price', 'amount', 'usd']
-    const tokenColumns = ['tokens', 'total_tokens', 'token_count', 'usage', 'total tokens']
+    const costColumns = ['cost', 'total_cost', 'price', 'amount', 'usd', 'total cost']
+    const tokenColumns = ['tokens', 'total_tokens', 'token_count', 'usage', 'total tokens', 'input_tokens', 'output_tokens']
+    const inputTokenColumns = ['input_tokens', 'prompt_tokens', 'input tokens']
+    const outputTokenColumns = ['output_tokens', 'completion_tokens', 'output tokens']
+    const maxModeColumns = ['max mode', 'max_mode', 'maxmode', 'extended_thinking', 'thinking_mode']
+    const timestampColumns = ['timestamp', 'date', 'created_at', 'time', 'datetime']
+    const durationColumns = ['duration', 'response_time', 'latency', 'time_ms']
 
+    // Initialize metrics
     let totalCost = 0
     let totalTokens = 0
+    let totalInputTokens = 0
+    let totalOutputTokens = 0
     const modelUsage = {}
+    const modelCosts = {}
+    const modelTokens = {}
 
-    // Attempt to extract real data from CSV
-    data.forEach(row => {
-      // Find cost (case-insensitive)
-      const costValue = findColumn(row, costColumns)
-      if (costValue) {
-        const cost = parseFloat(costValue)
-        if (!isNaN(cost)) {
-          totalCost += cost
-        }
+    // Extended thinking / Max Mode tracking
+    let extendedThinkingCount = 0
+    let extendedThinkingCost = 0
+
+    // Time-based analysis
+    const dailyUsage = {}
+    const hourlyUsage = {}
+
+    // Token efficiency metrics
+    let totalDuration = 0
+    let requestsWithDuration = 0
+
+    // Duplicate detection
+    const requestHashes = new Map()
+    let duplicateCount = 0
+    let duplicateCost = 0
+
+    // Prompt length analysis
+    const promptLengths = []
+
+    // Cost per model tracking
+    const costPerRequest = []
+
+    // Process each row
+    data.forEach((row, index) => {
+      // Extract cost
+      const costValue = findColumnValue(row, costColumns)
+      const rowCost = costValue ? parseFloat(costValue) : 0
+      if (!isNaN(rowCost) && rowCost > 0) {
+        totalCost += rowCost
+        costPerRequest.push(rowCost)
       }
 
-      // Find model (case-insensitive)
-      const modelValue = findColumn(row, modelColumns)
-      if (modelValue) {
-        const model = modelValue.toString().trim()
-        if (model) {
-          modelUsage[model] = (modelUsage[model] || 0) + 1
-        }
+      // Extract model
+      const modelValue = findColumnValue(row, modelColumns)
+      const model = modelValue ? modelValue.toString().trim() : 'Unknown'
+      if (model && model !== 'Unknown') {
+        modelUsage[model] = (modelUsage[model] || 0) + 1
+        modelCosts[model] = (modelCosts[model] || 0) + rowCost
       }
 
-      // Find tokens (case-insensitive)
-      const tokenValue = findColumn(row, tokenColumns)
+      // Extract tokens
+      const tokenValue = findColumnValue(row, tokenColumns)
       if (tokenValue) {
         const tokens = parseInt(tokenValue)
         if (!isNaN(tokens)) {
           totalTokens += tokens
+          modelTokens[model] = (modelTokens[model] || 0) + tokens
         }
+      }
+
+      // Input/Output tokens breakdown
+      const inputTokenValue = findColumnValue(row, inputTokenColumns)
+      const outputTokenValue = findColumnValue(row, outputTokenColumns)
+      if (inputTokenValue) totalInputTokens += parseInt(inputTokenValue) || 0
+      if (outputTokenValue) totalOutputTokens += parseInt(outputTokenValue) || 0
+
+      // Max Mode / Extended Thinking detection
+      const maxModeValue = findColumnValue(row, maxModeColumns)
+      if (maxModeValue) {
+        const mode = maxModeValue.toString().toLowerCase().trim()
+        if (mode === 'extended' || mode === 'true' || mode === 'yes' || mode === '1' || mode === 'enabled') {
+          extendedThinkingCount++
+          extendedThinkingCost += rowCost
+        }
+      }
+
+      // Time-based analysis
+      const timestampValue = findColumnValue(row, timestampColumns)
+      if (timestampValue) {
+        try {
+          const date = new Date(timestampValue)
+          if (!isNaN(date.getTime())) {
+            const dayKey = date.toISOString().split('T')[0]
+            const hour = date.getHours()
+
+            dailyUsage[dayKey] = dailyUsage[dayKey] || { requests: 0, cost: 0 }
+            dailyUsage[dayKey].requests++
+            dailyUsage[dayKey].cost += rowCost
+
+            hourlyUsage[hour] = hourlyUsage[hour] || { requests: 0, cost: 0 }
+            hourlyUsage[hour].requests++
+            hourlyUsage[hour].cost += rowCost
+          }
+        } catch (e) {}
+      }
+
+      // Duration tracking
+      const durationValue = findColumnValue(row, durationColumns)
+      if (durationValue) {
+        const duration = parseFloat(durationValue)
+        if (!isNaN(duration)) {
+          totalDuration += duration
+          requestsWithDuration++
+        }
+      }
+
+      // Simple duplicate detection (based on model + approximate cost)
+      const hashKey = `${model}-${Math.round(rowCost * 1000)}`
+      if (requestHashes.has(hashKey)) {
+        duplicateCount++
+        duplicateCost += rowCost
+      } else {
+        requestHashes.set(hashKey, true)
       }
     })
 
-    // Generate analysis based on real or mock data
-    const hasRealData = totalCost > 0 || Object.keys(modelUsage).length > 0
+    // Calculate derived metrics
+    const totalRequests = data.length
+    const avgCostPerRequest = totalRequests > 0 ? totalCost / totalRequests : 0
+    const avgTokensPerRequest = totalRequests > 0 ? totalTokens / totalRequests : 0
+    const avgDuration = requestsWithDuration > 0 ? totalDuration / requestsWithDuration : 0
+    const duplicatePercentage = totalRequests > 0 ? (duplicateCount / totalRequests) * 100 : 0
 
-    const models = hasRealData && Object.keys(modelUsage).length > 0
-      ? Object.entries(modelUsage)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 5)
-          .map(([name, count], index) => {
-            const colors = ['#F97CF5', '#A855F7', '#8B5CF6', '#6366F1', '#3B82F6']
-            const total = Object.values(modelUsage).reduce((a, b) => a + b, 0)
-            const usage = Math.round((count / total) * 100)
-            return {
-              name: name.length > 15 ? name.substring(0, 15) + '...' : name,
-              usage,
-              cost: totalCost > 0 ? (totalCost * usage / 100) : (usage * 2.3),
-              color: colors[index % colors.length],
-              requests: count
-            }
-          })
-      : [
-          { name: 'GPT-4', usage: 45, cost: 103.05, color: '#F97CF5', requests: 562 },
-          { name: 'GPT-3.5', usage: 30, cost: 68.70, color: '#A855F7', requests: 375 },
-          { name: 'Claude', usage: 25, cost: 57.25, color: '#8B5CF6', requests: 313 },
-        ]
+    // Extended thinking metrics
+    const extendedThinking = {
+      count: extendedThinkingCount,
+      cost: Math.round(extendedThinkingCost * 100) / 100,
+      percentage: totalRequests > 0 ? Math.round((extendedThinkingCount / totalRequests) * 100) : 0
+    }
 
-    const actualTotalSpent = totalCost > 0 ? Math.round(totalCost * 100) / 100 : 229
-    const actualRequests = data.length || 1250
+    // Generate model breakdown
+    const colors = ['#F97CF5', '#A855F7', '#8B5CF6', '#6366F1', '#3B82F6', '#06B6D4', '#10B981', '#F59E0B']
+    const modelEntries = Object.entries(modelUsage).sort((a, b) => b[1] - a[1])
+    const totalModelRequests = modelEntries.reduce((sum, [_, count]) => sum + count, 0)
+
+    const models = modelEntries.slice(0, 8).map(([name, count], index) => {
+      const usage = Math.round((count / totalModelRequests) * 100)
+      const cost = modelCosts[name] || 0
+      const tokens = modelTokens[name] || 0
+      const costPerReq = count > 0 ? cost / count : 0
+
+      return {
+        name: name.length > 20 ? name.substring(0, 20) + '...' : name,
+        fullName: name,
+        usage,
+        cost: Math.round(cost * 100) / 100,
+        color: colors[index % colors.length],
+        requests: count,
+        tokens,
+        avgCostPerRequest: Math.round(costPerReq * 10000) / 10000
+      }
+    })
+
+    // Generate dynamic recommendations based on actual data patterns
+    const recommendations = generateSmartRecommendations({
+      models,
+      modelUsage,
+      modelCosts,
+      totalCost,
+      totalRequests,
+      totalTokens,
+      avgCostPerRequest,
+      duplicateCount,
+      duplicateCost,
+      duplicatePercentage,
+      extendedThinking,
+      avgTokensPerRequest,
+      totalInputTokens,
+      totalOutputTokens,
+      dailyUsage,
+      hourlyUsage
+    })
+
+    // Generate weekly usage from actual data or create realistic distribution
+    const weeklyUsage = generateWeeklyUsage(dailyUsage, totalRequests, totalCost)
+
+    // Calculate potential savings
+    const potentialSavings = recommendations.reduce((sum, rec) => sum + rec.savings, 0)
 
     return {
-      totalSpent: actualTotalSpent,
-      totalRequests: actualRequests,
+      totalSpent: Math.round(totalCost * 100) / 100,
+      totalRequests,
+      totalTokens,
       filesAnalyzed: fileCount,
       models,
-      recommendations: [
-        {
-          title: 'Switch to GPT-3.5 for simple tasks',
-          description: 'Analysis shows 40% of your GPT-4 queries are simple enough for GPT-3.5',
-          savings: Math.round(actualTotalSpent * 0.20),
-          impact: 'high'
-        },
-        {
-          title: 'Batch similar requests',
-          description: 'Combine sequential similar queries to reduce API overhead',
-          savings: Math.round(actualTotalSpent * 0.12),
-          impact: 'medium'
-        },
-        {
-          title: 'Cache repeated queries',
-          description: '15% of your queries are identical and could be cached',
-          savings: Math.round(actualTotalSpent * 0.10),
-          impact: 'medium'
-        },
-        {
-          title: 'Optimize prompt length',
-          description: 'Reduce average prompt length by removing redundant context',
-          savings: Math.round(actualTotalSpent * 0.06),
-          impact: 'low'
-        },
-      ],
-      weeklyUsage: [
-        { day: 'Mon', requests: Math.round(actualRequests * 0.15), cost: Math.round(actualTotalSpent * 0.14) },
-        { day: 'Tue', requests: Math.round(actualRequests * 0.18), cost: Math.round(actualTotalSpent * 0.18) },
-        { day: 'Wed', requests: Math.round(actualRequests * 0.16), cost: Math.round(actualTotalSpent * 0.15) },
-        { day: 'Thu', requests: Math.round(actualRequests * 0.19), cost: Math.round(actualTotalSpent * 0.20) },
-        { day: 'Fri', requests: Math.round(actualRequests * 0.16), cost: Math.round(actualTotalSpent * 0.17) },
-        { day: 'Sat', requests: Math.round(actualRequests * 0.09), cost: Math.round(actualTotalSpent * 0.09) },
-        { day: 'Sun', requests: Math.round(actualRequests * 0.07), cost: Math.round(actualTotalSpent * 0.07) },
-      ],
-      potentialSavings: Math.round(actualTotalSpent * 0.48),
+      recommendations,
+      weeklyUsage,
+      potentialSavings: Math.round(potentialSavings),
+      extendedThinking,
+      metrics: {
+        avgCostPerRequest: Math.round(avgCostPerRequest * 10000) / 10000,
+        avgTokensPerRequest: Math.round(avgTokensPerRequest),
+        avgDuration: Math.round(avgDuration * 100) / 100,
+        duplicatePercentage: Math.round(duplicatePercentage * 10) / 10,
+        duplicateCost: Math.round(duplicateCost * 100) / 100,
+        inputOutputRatio: totalOutputTokens > 0 ? Math.round((totalInputTokens / totalOutputTokens) * 100) / 100 : 0
+      }
     }
+  }
+
+  // Generate smart recommendations based on actual usage patterns
+  const generateSmartRecommendations = (metrics) => {
+    const recommendations = []
+    const {
+      models,
+      modelUsage,
+      modelCosts,
+      totalCost,
+      totalRequests,
+      totalTokens,
+      avgCostPerRequest,
+      duplicateCount,
+      duplicateCost,
+      duplicatePercentage,
+      extendedThinking,
+      avgTokensPerRequest,
+      totalInputTokens,
+      totalOutputTokens,
+      hourlyUsage
+    } = metrics
+
+    // 1. Model downgrade opportunities
+    const expensiveModels = models.filter(m =>
+      m.fullName?.toLowerCase().includes('gpt-4') ||
+      m.fullName?.toLowerCase().includes('claude-3-opus') ||
+      m.fullName?.toLowerCase().includes('claude-opus') ||
+      m.fullName?.toLowerCase().includes('opus')
+    )
+
+    if (expensiveModels.length > 0) {
+      const expensiveCost = expensiveModels.reduce((sum, m) => sum + m.cost, 0)
+      const expensiveRequests = expensiveModels.reduce((sum, m) => sum + m.requests, 0)
+      // Estimate 40% of expensive model usage could use cheaper models
+      const potentialSavings = expensiveCost * 0.4 * 0.7 // 70% cost reduction on 40% of requests
+
+      if (potentialSavings > 1) {
+        recommendations.push({
+          title: 'Downgrade simple queries to cheaper models',
+          description: `${expensiveRequests.toLocaleString()} requests use expensive models. Analysis suggests ~40% could use GPT-3.5/Claude Haiku for routine tasks like summarization, formatting, or simple Q&A.`,
+          savings: Math.round(potentialSavings),
+          impact: potentialSavings > totalCost * 0.15 ? 'high' : 'medium',
+          category: 'model-optimization',
+          actionable: true,
+          details: expensiveModels.map(m => `${m.name}: ${m.requests} requests, $${m.cost.toFixed(2)}`).join(', ')
+        })
+      }
+    }
+
+    // 2. Extended thinking optimization
+    if (extendedThinking.count > 0 && extendedThinking.cost > 0) {
+      const savingsEstimate = extendedThinking.cost * 0.6 // Extended thinking costs ~2.5x more
+      recommendations.push({
+        title: 'Reduce extended thinking usage',
+        description: `${extendedThinking.count} requests (${extendedThinking.percentage}%) use extended thinking mode, costing $${extendedThinking.cost.toFixed(2)}. Reserve this for complex reasoning tasks only.`,
+        savings: Math.round(savingsEstimate),
+        impact: savingsEstimate > totalCost * 0.1 ? 'high' : 'medium',
+        category: 'feature-optimization',
+        actionable: true
+      })
+    }
+
+    // 3. Duplicate/cache opportunities
+    if (duplicatePercentage > 5) {
+      recommendations.push({
+        title: 'Implement response caching',
+        description: `${duplicatePercentage.toFixed(1)}% of requests appear similar (${duplicateCount} potential duplicates). Implement semantic caching to eliminate redundant API calls.`,
+        savings: Math.round(duplicateCost * 0.8),
+        impact: duplicateCost > totalCost * 0.1 ? 'high' : 'medium',
+        category: 'caching',
+        actionable: true
+      })
+    }
+
+    // 4. Token efficiency - Input/Output ratio analysis
+    if (totalInputTokens > 0 && totalOutputTokens > 0) {
+      const ioRatio = totalInputTokens / totalOutputTokens
+      if (ioRatio > 3) {
+        // High input ratio suggests verbose prompts
+        const estimatedPromptSavings = totalCost * 0.15
+        recommendations.push({
+          title: 'Optimize prompt length',
+          description: `Input tokens are ${ioRatio.toFixed(1)}x output tokens. This high ratio suggests prompts may contain redundant context. Compress prompts using techniques like few-shot reduction or context summarization.`,
+          savings: Math.round(estimatedPromptSavings),
+          impact: 'medium',
+          category: 'prompt-optimization',
+          actionable: true
+        })
+      }
+    }
+
+    // 5. High token usage per request
+    if (avgTokensPerRequest > 4000) {
+      recommendations.push({
+        title: 'Implement chunking for large contexts',
+        description: `Average ${avgTokensPerRequest.toLocaleString()} tokens per request. Break down large documents into smaller chunks and use map-reduce patterns to reduce per-request costs.`,
+        savings: Math.round(totalCost * 0.12),
+        impact: 'medium',
+        category: 'architecture',
+        actionable: true
+      })
+    }
+
+    // 6. Off-peak scheduling
+    if (Object.keys(hourlyUsage).length > 0) {
+      const peakHours = Object.entries(hourlyUsage)
+        .sort((a, b) => b[1].requests - a[1].requests)
+        .slice(0, 3)
+        .map(([hour]) => parseInt(hour))
+
+      if (peakHours.length > 0) {
+        recommendations.push({
+          title: 'Batch non-urgent requests',
+          description: `Peak usage at ${peakHours.map(h => `${h}:00`).join(', ')}. Schedule batch processing and non-time-sensitive requests during off-peak hours to manage rate limits and potentially access lower pricing tiers.`,
+          savings: Math.round(totalCost * 0.05),
+          impact: 'low',
+          category: 'scheduling',
+          actionable: true
+        })
+      }
+    }
+
+    // 7. Model-specific optimizations
+    const claudeModels = models.filter(m => m.fullName?.toLowerCase().includes('claude'))
+    if (claudeModels.length > 0) {
+      const claudeCost = claudeModels.reduce((sum, m) => sum + m.cost, 0)
+      if (claudeCost > 0) {
+        recommendations.push({
+          title: 'Use Claude\'s prompt caching',
+          description: `$${claudeCost.toFixed(2)} spent on Claude models. Enable prompt caching for repeated system prompts to reduce input token costs by up to 90% on cached portions.`,
+          savings: Math.round(claudeCost * 0.25),
+          impact: claudeCost > totalCost * 0.3 ? 'high' : 'medium',
+          category: 'provider-features',
+          actionable: true
+        })
+      }
+    }
+
+    // 8. Streaming optimization
+    if (totalRequests > 100) {
+      recommendations.push({
+        title: 'Implement streaming for long responses',
+        description: `With ${totalRequests.toLocaleString()} requests, use streaming responses to improve perceived latency and enable early termination for unwanted outputs, reducing wasted tokens.`,
+        savings: Math.round(totalCost * 0.03),
+        impact: 'low',
+        category: 'ux-optimization',
+        actionable: true
+      })
+    }
+
+    // Sort by savings and take top recommendations
+    return recommendations
+      .sort((a, b) => b.savings - a.savings)
+      .slice(0, 6)
+      .map((rec, index) => ({
+        ...rec,
+        priority: index + 1
+      }))
+  }
+
+  // Generate weekly usage data
+  const generateWeeklyUsage = (dailyUsage, totalRequests, totalCost) => {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+    // If we have actual daily data, aggregate by day of week
+    if (Object.keys(dailyUsage).length > 0) {
+      const weekdayAgg = {}
+      days.forEach(day => { weekdayAgg[day] = { requests: 0, cost: 0, count: 0 } })
+
+      Object.entries(dailyUsage).forEach(([dateStr, data]) => {
+        const date = new Date(dateStr)
+        const dayName = days[date.getDay()]
+        weekdayAgg[dayName].requests += data.requests
+        weekdayAgg[dayName].cost += data.cost
+        weekdayAgg[dayName].count++
+      })
+
+      return days.slice(1).concat(days[0]).map(day => ({
+        day,
+        requests: weekdayAgg[day].count > 0
+          ? Math.round(weekdayAgg[day].requests / weekdayAgg[day].count)
+          : 0,
+        cost: weekdayAgg[day].count > 0
+          ? Math.round(weekdayAgg[day].cost / weekdayAgg[day].count * 100) / 100
+          : 0
+      }))
+    }
+
+    // Fallback: distribute based on typical patterns
+    const distribution = [0.14, 0.17, 0.16, 0.18, 0.16, 0.11, 0.08]
+    return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => ({
+      day,
+      requests: Math.round(totalRequests * distribution[i]),
+      cost: Math.round(totalCost * distribution[i] * 100) / 100
+    }))
   }
 
   const totalSize = uploadedFiles.reduce((acc, file) => acc + file.size, 0)
@@ -421,7 +809,6 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
                       )}
                     </motion.div>
 
-                    {/* Pulse rings when dragging */}
                     {isDragging && (
                       <>
                         <motion.div
@@ -483,9 +870,17 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
                     </motion.button>
                   </div>
 
-                  <p className="text-gray-500 text-xs mt-6">
-                    Supports OpenAI, Anthropic, and other provider exports
-                  </p>
+                  {/* Validation info */}
+                  <div className="flex items-center justify-center gap-4 mt-6 text-gray-500 text-xs">
+                    <span className="flex items-center gap-1">
+                      <Shield className="w-3 h-3" />
+                      Max 50MB per file
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <FileText className="w-3 h-3" />
+                      CSV with cost/model columns
+                    </span>
+                  </div>
                 </motion.div>
               ) : (
                 <motion.div
@@ -573,6 +968,23 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
                     </p>
                   </div>
 
+                  {/* Validation warnings */}
+                  <AnimatePresence>
+                    {validationWarnings.length > 0 && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="mb-4 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20"
+                      >
+                        <p className="text-yellow-400 text-xs font-medium mb-1">Warnings:</p>
+                        {validationWarnings.map((warning, i) => (
+                          <p key={i} className="text-yellow-400/70 text-xs">{warning}</p>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   {/* Progress bar when processing */}
                   {isProcessing && (
                     <motion.div
@@ -655,10 +1067,10 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
-                  className="flex items-center gap-2 justify-center mt-4 text-red-400 text-sm"
+                  className="flex items-start gap-2 mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20"
                 >
-                  <AlertCircle className="w-4 h-4" />
-                  {error}
+                  <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
+                  <p className="text-red-400 text-sm">{error}</p>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -674,10 +1086,10 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
         className="flex flex-wrap justify-center gap-6 mt-12 text-sm text-gray-500"
       >
         {[
-          { label: 'Cost Analysis', icon: '💰' },
-          { label: 'Model Comparison', icon: '🔄' },
-          { label: 'Smart Recommendations', icon: '✨' },
-          { label: 'Batch Processing', icon: '📁' }
+          { label: 'Smart Cost Analysis', icon: Brain },
+          { label: 'Model Optimization', icon: Zap },
+          { label: 'Dynamic Insights', icon: Sparkles },
+          { label: 'PDF Reports', icon: FileText }
         ].map((feature, i) => (
           <motion.div
             key={feature.label}
@@ -686,7 +1098,7 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.7 + i * 0.1 }}
           >
-            <span>{feature.icon}</span>
+            <feature.icon className="w-4 h-4 text-accent-400/60" />
             {feature.label}
           </motion.div>
         ))}

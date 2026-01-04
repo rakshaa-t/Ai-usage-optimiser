@@ -3,100 +3,116 @@ import { motion } from 'framer-motion'
 
 export default function UsageChart({ data }) {
   const [hoveredIndex, setHoveredIndex] = useState(null)
-  
-  const maxRequests = Math.max(...data.map(d => d.requests))
-  const maxCost = Math.max(...data.map(d => d.cost))
+
+  // Handle empty or invalid data
+  if (!data || data.length === 0) {
+    return (
+      <div className="h-48 flex items-center justify-center text-gray-500">
+        No usage data available
+      </div>
+    )
+  }
+
+  const maxRequests = Math.max(...data.map(d => d.requests || 0), 1)
+  const chartHeight = 180 // Fixed pixel height for the chart
 
   return (
     <div className="relative">
-      {/* Chart */}
-      <div className="flex items-end justify-between gap-2 h-48 px-2">
-        {data.map((item, index) => {
-          const height = (item.requests / maxRequests) * 100
-          const isHovered = hoveredIndex === index
-          
-          return (
-            <div
-              key={item.day}
-              className="flex-1 flex flex-col items-center gap-2"
-              onMouseEnter={() => setHoveredIndex(index)}
-              onMouseLeave={() => setHoveredIndex(null)}
-            >
-              {/* Tooltip */}
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ 
-                  opacity: isHovered ? 1 : 0,
-                  y: isHovered ? 0 : 10,
-                }}
-                className="absolute -top-2 left-1/2 transform -translate-x-1/2 px-3 py-2 rounded-lg bg-dark-600 border border-white/10 text-center whitespace-nowrap z-10"
-                style={{
-                  left: `${(index / (data.length - 1)) * 100}%`,
-                }}
-              >
-                <p className="text-white text-sm font-semibold">{item.requests}</p>
-                <p className="text-gray-400 text-xs">requests</p>
-                <p className="text-accent-400 text-xs">${item.cost}</p>
-              </motion.div>
-              
-              {/* Bar */}
-              <div className="relative w-full flex-1 flex items-end">
-                <motion.div
-                  className="w-full rounded-t-lg cursor-pointer relative overflow-hidden"
-                  initial={{ height: 0 }}
-                  animate={{ 
-                    height: `${height}%`,
-                  }}
-                  transition={{ 
-                    duration: 0.8, 
-                    delay: index * 0.05,
-                    type: 'spring',
-                    stiffness: 100,
-                    damping: 15,
-                  }}
-                  style={{
-                    background: isHovered 
-                      ? 'linear-gradient(180deg, #F97CF5 0%, #A855F7 100%)'
-                      : 'linear-gradient(180deg, rgba(249, 124, 245, 0.6) 0%, rgba(168, 85, 247, 0.6) 100%)',
-                    boxShadow: isHovered 
-                      ? '0 0 20px rgba(249, 124, 245, 0.4)'
-                      : 'none',
-                  }}
-                  whileHover={{ scale: 1.05 }}
-                >
-                  {/* Shine effect */}
-                  <motion.div
-                    className="absolute inset-0"
-                    style={{
-                      background: 'linear-gradient(180deg, rgba(255,255,255,0.2) 0%, transparent 50%)',
-                    }}
-                    animate={{
-                      opacity: isHovered ? 1 : 0.5,
-                    }}
-                  />
-                </motion.div>
-              </div>
-              
-              {/* Label */}
-              <span className={`text-xs transition-colors duration-200 ${
-                isHovered ? 'text-white' : 'text-gray-500'
-              }`}>
-                {item.day}
-              </span>
-            </div>
-          )
-        })}
+      {/* Y-axis labels */}
+      <div className="absolute left-0 top-0 h-[180px] flex flex-col justify-between text-xs text-gray-500 pr-2">
+        <span>{maxRequests}</span>
+        <span>{Math.round(maxRequests * 0.5)}</span>
+        <span>0</span>
       </div>
-      
-      {/* Grid lines */}
-      <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
-        {[...Array(4)].map((_, i) => (
-          <div 
-            key={i} 
-            className="border-b border-white/5 w-full"
-            style={{ height: '25%' }}
-          />
-        ))}
+
+      {/* Chart container */}
+      <div className="ml-8">
+        {/* Grid lines */}
+        <div className="absolute left-8 right-0 top-0 h-[180px] flex flex-col justify-between pointer-events-none">
+          {[0, 1, 2].map((i) => (
+            <div
+              key={i}
+              className="border-t border-white/5 w-full"
+            />
+          ))}
+        </div>
+
+        {/* Bars */}
+        <div className="flex items-end justify-between gap-2 h-[180px]">
+          {data.map((item, index) => {
+            const barHeight = ((item.requests || 0) / maxRequests) * chartHeight
+            const isHovered = hoveredIndex === index
+
+            return (
+              <div
+                key={item.day}
+                className="flex-1 flex flex-col items-center relative"
+                onMouseEnter={() => setHoveredIndex(index)}
+                onMouseLeave={() => setHoveredIndex(null)}
+              >
+                {/* Tooltip */}
+                {isHovered && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="absolute bottom-full mb-2 px-3 py-2 rounded-lg bg-dark-600 border border-white/10 text-center whitespace-nowrap z-20 shadow-lg"
+                  >
+                    <p className="text-white text-sm font-semibold">{item.requests}</p>
+                    <p className="text-gray-400 text-xs">requests</p>
+                    <p className="text-accent-400 text-xs font-medium">${item.cost}</p>
+                    {/* Tooltip arrow */}
+                    <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-dark-600" />
+                  </motion.div>
+                )}
+
+                {/* Bar container */}
+                <div
+                  className="w-full flex items-end justify-center"
+                  style={{ height: chartHeight }}
+                >
+                  <motion.div
+                    className="w-full max-w-[40px] rounded-t-lg cursor-pointer relative overflow-hidden"
+                    initial={{ height: 0 }}
+                    animate={{ height: barHeight }}
+                    transition={{
+                      duration: 0.8,
+                      delay: index * 0.08,
+                      type: 'spring',
+                      stiffness: 80,
+                      damping: 15,
+                    }}
+                    style={{
+                      background: isHovered
+                        ? 'linear-gradient(180deg, #F97CF5 0%, #A855F7 100%)'
+                        : 'linear-gradient(180deg, rgba(249, 124, 245, 0.7) 0%, rgba(168, 85, 247, 0.7) 100%)',
+                      boxShadow: isHovered
+                        ? '0 0 20px rgba(249, 124, 245, 0.5), 0 0 40px rgba(249, 124, 245, 0.2)'
+                        : 'none',
+                      minHeight: item.requests > 0 ? '4px' : '0px',
+                    }}
+                    whileHover={{ scale: 1.08 }}
+                  >
+                    {/* Shine effect */}
+                    <div
+                      className="absolute inset-0 pointer-events-none"
+                      style={{
+                        background: 'linear-gradient(180deg, rgba(255,255,255,0.25) 0%, transparent 40%)',
+                        opacity: isHovered ? 1 : 0.6,
+                      }}
+                    />
+                  </motion.div>
+                </div>
+
+                {/* Day label */}
+                <span className={`text-xs mt-2 transition-colors duration-200 ${
+                  isHovered ? 'text-white font-medium' : 'text-gray-500'
+                }`}>
+                  {item.day}
+                </span>
+              </div>
+            )
+          })}
+        </div>
       </div>
     </div>
   )
