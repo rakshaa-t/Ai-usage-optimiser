@@ -193,13 +193,10 @@ ${analysisData.recommendations.slice(0, 2).map(r => `• ${r.title} (+$${r.savin
           </h1>
         </div>
         
-        <motion.div
-          className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl glass"
-          whileHover={{ scale: 1.02 }}
-        >
+        <div className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl glass">
           <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
           <span className="text-sm text-gray-300">Analysis Complete</span>
-        </motion.div>
+        </div>
       </motion.div>
 
       {/* Stats Grid */}

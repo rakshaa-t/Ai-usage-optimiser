@@ -51,7 +51,7 @@ export default function PieChart({ data, size = 200 }) {
 
   return (
     <div className="relative" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="transform -rotate-0">
+      <svg width={size} height={size} className="transform -rotate-0" style={{ overflow: 'visible' }}>
         {/* Background circle */}
         <circle
           cx={centerX}
