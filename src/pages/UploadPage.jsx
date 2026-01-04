@@ -195,10 +195,20 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
 
   // Analyze the aggregated data from all CSVs
   const analyzeData = (data, fileCount) => {
-    // Try to detect model usage from common column names
+    // Helper to find column case-insensitively
+    const findColumn = (row, possibleNames) => {
+      const keys = Object.keys(row)
+      for (const name of possibleNames) {
+        const found = keys.find(k => k.toLowerCase() === name.toLowerCase())
+        if (found && row[found]) return row[found]
+      }
+      return null
+    }
+
+    // Try to detect model usage from common column names (case-insensitive)
     const modelColumns = ['model', 'model_name', 'model_id', 'engine']
     const costColumns = ['cost', 'total_cost', 'price', 'amount', 'usd']
-    const tokenColumns = ['tokens', 'total_tokens', 'token_count', 'usage']
+    const tokenColumns = ['tokens', 'total_tokens', 'token_count', 'usage', 'total tokens']
 
     let totalCost = 0
     let totalTokens = 0
@@ -206,36 +216,30 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
 
     // Attempt to extract real data from CSV
     data.forEach(row => {
-      // Find cost
-      for (const col of costColumns) {
-        if (row[col]) {
-          const cost = parseFloat(row[col])
-          if (!isNaN(cost)) {
-            totalCost += cost
-            break
-          }
+      // Find cost (case-insensitive)
+      const costValue = findColumn(row, costColumns)
+      if (costValue) {
+        const cost = parseFloat(costValue)
+        if (!isNaN(cost)) {
+          totalCost += cost
         }
       }
 
-      // Find model
-      for (const col of modelColumns) {
-        if (row[col]) {
-          const model = row[col].toString().trim()
-          if (model) {
-            modelUsage[model] = (modelUsage[model] || 0) + 1
-            break
-          }
+      // Find model (case-insensitive)
+      const modelValue = findColumn(row, modelColumns)
+      if (modelValue) {
+        const model = modelValue.toString().trim()
+        if (model) {
+          modelUsage[model] = (modelUsage[model] || 0) + 1
         }
       }
 
-      // Find tokens
-      for (const col of tokenColumns) {
-        if (row[col]) {
-          const tokens = parseInt(row[col])
-          if (!isNaN(tokens)) {
-            totalTokens += tokens
-            break
-          }
+      // Find tokens (case-insensitive)
+      const tokenValue = findColumn(row, tokenColumns)
+      if (tokenValue) {
+        const tokens = parseInt(tokenValue)
+        if (!isNaN(tokens)) {
+          totalTokens += tokens
         }
       }
     })
