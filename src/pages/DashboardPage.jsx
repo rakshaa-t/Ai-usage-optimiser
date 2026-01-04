@@ -1,15 +1,20 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { 
-  DollarSign, 
-  TrendingDown, 
-  Zap, 
+import { motion, AnimatePresence } from 'framer-motion'
+import {
+  DollarSign,
+  TrendingDown,
+  Zap,
   ArrowUpRight,
   ArrowLeft,
   Lightbulb,
   ChevronRight,
-  BarChart3
+  BarChart3,
+  FileText,
+  Download,
+  Check,
+  Share2,
+  Copy
 } from 'lucide-react'
 import TiltCard from '../components/TiltCard'
 import PieChart from '../components/PieChart'
@@ -18,6 +23,7 @@ import UsageChart from '../components/UsageChart'
 const defaultData = {
   totalSpent: 229,
   totalRequests: 1250,
+  filesAnalyzed: 1,
   models: [
     { name: 'GPT-4', usage: 45, cost: 103.05, color: '#F97CF5', requests: 562 },
     { name: 'GPT-3.5', usage: 30, cost: 68.70, color: '#A855F7', requests: 375 },
@@ -71,6 +77,54 @@ export default function DashboardPage({ data }) {
   const navigate = useNavigate()
   const analysisData = data || defaultData
   const [hoveredRec, setHoveredRec] = useState(null)
+  const [exportSuccess, setExportSuccess] = useState(false)
+  const [shareSuccess, setShareSuccess] = useState(false)
+
+  const handleExport = () => {
+    const report = {
+      generatedAt: new Date().toISOString(),
+      summary: {
+        totalSpent: analysisData.totalSpent,
+        potentialSavings: analysisData.potentialSavings,
+        totalRequests: analysisData.totalRequests,
+        filesAnalyzed: analysisData.filesAnalyzed || 1
+      },
+      models: analysisData.models,
+      recommendations: analysisData.recommendations,
+      weeklyUsage: analysisData.weeklyUsage
+    }
+
+    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `ai-usage-report-${new Date().toISOString().split('T')[0]}.json`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+
+    setExportSuccess(true)
+    setTimeout(() => setExportSuccess(false), 2000)
+  }
+
+  const handleShare = async () => {
+    const shareText = `AI Usage Report:
+Total Spent: $${analysisData.totalSpent}
+Potential Savings: $${analysisData.potentialSavings} (${Math.round((analysisData.potentialSavings / analysisData.totalSpent) * 100)}% reduction)
+Total Requests: ${analysisData.totalRequests.toLocaleString()}
+
+Top Recommendations:
+${analysisData.recommendations.slice(0, 2).map(r => `• ${r.title} (+$${r.savings}/mo)`).join('\n')}`
+
+    try {
+      await navigator.clipboard.writeText(shareText)
+      setShareSuccess(true)
+      setTimeout(() => setShareSuccess(false), 2000)
+    } catch (err) {
+      console.error('Failed to copy:', err)
+    }
+  }
 
   const stats = [
     {
@@ -93,6 +147,13 @@ export default function DashboardPage({ data }) {
       icon: Zap,
       color: '#A855F7',
       subtext: 'API calls'
+    },
+    {
+      label: 'Files Analyzed',
+      value: analysisData.filesAnalyzed || 1,
+      icon: FileText,
+      color: '#3B82F6',
+      subtext: 'CSV files processed'
     },
   ]
 
@@ -146,7 +207,7 @@ export default function DashboardPage({ data }) {
         variants={containerVariants}
         initial="hidden"
         animate="visible"
-        className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8"
+        className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
       >
         {stats.map((stat, index) => (
           <motion.div key={stat.label} variants={itemVariants}>
@@ -314,27 +375,94 @@ export default function DashboardPage({ data }) {
               Ready to optimize?
             </h3>
             <p className="text-gray-400 text-sm mb-6 max-w-md">
-              Export this analysis or set up automated monitoring for your API usage
+              Export this analysis or share your optimization opportunities
             </p>
-            <div className="flex gap-3 justify-center">
-              <button className="
-                px-5 py-2.5 rounded-xl font-medium text-sm
-                bg-dark-600/50 border border-white/10
-                text-gray-300 hover:text-white hover:border-white/20
-                transition-all duration-300
-              ">
-                Export Report
-              </button>
-              <button className="
-                px-6 py-2.5 rounded-xl font-medium text-sm
-                bg-gradient-to-r from-accent-600 to-accent-500
-                hover:from-accent-500 hover:to-accent-400
-                text-white shadow-lg shadow-accent-500/25
-                transition-all duration-300 hover:shadow-accent-500/40
-                hover:scale-105 active:scale-95
-              ">
+            <div className="flex gap-3 justify-center flex-wrap">
+              <motion.button
+                onClick={handleExport}
+                className="
+                  px-5 py-2.5 rounded-xl font-medium text-sm
+                  bg-dark-600/50 border border-white/10
+                  text-gray-300 hover:text-white hover:border-white/20
+                  transition-all duration-300 flex items-center gap-2
+                "
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <AnimatePresence mode="wait">
+                  {exportSuccess ? (
+                    <motion.div
+                      key="check"
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      exit={{ scale: 0 }}
+                    >
+                      <Check className="w-4 h-4 text-green-400" />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="download"
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      exit={{ scale: 0 }}
+                    >
+                      <Download className="w-4 h-4" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                {exportSuccess ? 'Downloaded!' : 'Export Report'}
+              </motion.button>
+
+              <motion.button
+                onClick={handleShare}
+                className="
+                  px-5 py-2.5 rounded-xl font-medium text-sm
+                  bg-dark-600/50 border border-white/10
+                  text-gray-300 hover:text-white hover:border-white/20
+                  transition-all duration-300 flex items-center gap-2
+                "
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <AnimatePresence mode="wait">
+                  {shareSuccess ? (
+                    <motion.div
+                      key="check"
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      exit={{ scale: 0 }}
+                    >
+                      <Check className="w-4 h-4 text-green-400" />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="copy"
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      exit={{ scale: 0 }}
+                    >
+                      <Copy className="w-4 h-4" />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                {shareSuccess ? 'Copied!' : 'Copy Summary'}
+              </motion.button>
+
+              <motion.button
+                className="
+                  px-6 py-2.5 rounded-xl font-medium text-sm
+                  bg-gradient-to-r from-accent-600 to-accent-500
+                  hover:from-accent-500 hover:to-accent-400
+                  text-white shadow-lg shadow-accent-500/25
+                  transition-all duration-300 hover:shadow-accent-500/40
+                  flex items-center gap-2
+                "
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Share2 className="w-4 h-4" />
                 Set Up Monitoring
-              </button>
+              </motion.button>
             </div>
           </div>
         </TiltCard>
