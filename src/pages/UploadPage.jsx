@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Upload, FileText, Sparkles, ArrowRight, Folder, X, Check, AlertCircle, FolderOpen, Shield, Brain, Zap } from 'lucide-react'
 import TiltCard from '../components/TiltCard'
@@ -715,15 +715,26 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
         transition={{ duration: 0.6 }}
         className="text-center mb-12"
       >
-        <motion.div
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass mb-6"
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ delay: 0.2 }}
-        >
-          <Sparkles className="w-4 h-4 text-accent-400" />
-          <span className="text-sm text-gray-300">AI-Powered Analysis</span>
-        </motion.div>
+        <div className="flex items-center justify-center gap-3 mb-6 flex-wrap">
+          <motion.div
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            <Sparkles className="w-4 h-4 text-accent-400" />
+            <span className="text-sm text-gray-300">AI-Powered Analysis</span>
+          </motion.div>
+          
+          <motion.div
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.25 }}
+          >
+            <span className="text-xs font-semibold text-yellow-400">BETA</span>
+          </motion.div>
+        </div>
 
         <h1 className="font-display text-5xl md:text-6xl font-bold mb-4">
           <span className="text-white">AI Usage </span>
@@ -1102,6 +1113,22 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
             {feature.label}
           </motion.div>
         ))}
+      </motion.div>
+
+      {/* Footer with Privacy Link */}
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 1 }}
+        className="mt-8 text-center"
+      >
+        <Link
+          to="/privacy"
+          className="inline-flex items-center gap-2 text-xs text-gray-500 hover:text-gray-400 transition-colors"
+        >
+          <Shield className="w-3 h-3" />
+          <span>Privacy Policy</span>
+        </Link>
       </motion.div>
     </div>
   )
