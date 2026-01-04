@@ -1,8 +1,11 @@
-import { useState } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { motion } from 'framer-motion'
+import Tooltip, { TooltipContent } from './Tooltip'
 
 export default function UsageChart({ data }) {
   const [hoveredIndex, setHoveredIndex] = useState(null)
+  const [tooltipAnchor, setTooltipAnchor] = useState(null)
+  const containerRef = useRef(null)
 
   // Handle empty or invalid data
   if (!data || data.length === 0) {
@@ -14,10 +17,28 @@ export default function UsageChart({ data }) {
   }
 
   const maxRequests = Math.max(...data.map(d => d.requests || 0), 1)
-  const chartHeight = 180 // Fixed pixel height for the chart
+  const chartHeight = 180
+
+  const handleBarHover = useCallback((index, event) => {
+    const barElement = event.currentTarget
+    const rect = barElement.getBoundingClientRect()
+
+    setHoveredIndex(index)
+    setTooltipAnchor({
+      x: rect.left + rect.width / 2,
+      y: rect.top,
+      width: rect.width,
+      height: rect.height,
+    })
+  }, [])
+
+  const handleMouseLeave = useCallback(() => {
+    setHoveredIndex(null)
+    setTooltipAnchor(null)
+  }, [])
 
   return (
-    <div className="relative">
+    <div ref={containerRef} className="relative">
       {/* Y-axis labels */}
       <div className="absolute left-0 top-0 h-[180px] flex flex-col justify-between text-xs text-gray-500 pr-2">
         <span>{maxRequests}</span>
@@ -47,24 +68,7 @@ export default function UsageChart({ data }) {
               <div
                 key={item.day}
                 className="flex-1 flex flex-col items-center relative"
-                onMouseEnter={() => setHoveredIndex(index)}
-                onMouseLeave={() => setHoveredIndex(null)}
               >
-                {/* Tooltip */}
-                {isHovered && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="absolute bottom-full mb-2 px-3 py-2 rounded-lg bg-dark-600 border border-white/10 text-center whitespace-nowrap z-20 shadow-lg"
-                  >
-                    <p className="text-white text-sm font-semibold">{item.requests}</p>
-                    <p className="text-gray-400 text-xs">requests</p>
-                    <p className="text-accent-400 text-xs font-medium">${item.cost}</p>
-                    {/* Tooltip arrow */}
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-dark-600" />
-                  </motion.div>
-                )}
-
                 {/* Bar container */}
                 <div
                   className="w-full flex items-end justify-center"
@@ -90,6 +94,8 @@ export default function UsageChart({ data }) {
                         : 'none',
                       minHeight: item.requests > 0 ? '4px' : '0px',
                     }}
+                    onMouseEnter={(e) => handleBarHover(index, e)}
+                    onMouseLeave={handleMouseLeave}
                     whileHover={{ scale: 1.08 }}
                   >
                     {/* Shine effect */}
@@ -114,6 +120,23 @@ export default function UsageChart({ data }) {
           })}
         </div>
       </div>
+
+      {/* Portal Tooltip */}
+      <Tooltip
+        isVisible={hoveredIndex !== null}
+        anchorRect={tooltipAnchor}
+        position="top"
+      >
+        {hoveredIndex !== null && (
+          <TooltipContent>
+            <div className="text-center">
+              <p className="text-white text-sm font-semibold">{data[hoveredIndex].requests.toLocaleString()}</p>
+              <p className="text-gray-400 text-xs">requests</p>
+              <p className="text-accent-400 text-xs font-medium mt-1">${data[hoveredIndex].cost}</p>
+            </div>
+          </TooltipContent>
+        )}
+      </Tooltip>
     </div>
   )
 }

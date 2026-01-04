@@ -1,9 +1,10 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import Tooltip, { TooltipContent } from './Tooltip'
 
 export default function PieChart({ data, size = 220, totalCost }) {
   const [hoveredIndex, setHoveredIndex] = useState(null)
-  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 })
+  const [tooltipAnchor, setTooltipAnchor] = useState(null)
   const containerRef = useRef(null)
 
   const total = data.reduce((sum, item) => sum + item.usage, 0)
@@ -54,131 +55,130 @@ export default function PieChart({ data, size = 220, totalCost }) {
     }
   })
 
-  // Calculate tooltip position based on segment's mid-angle
-  const getTooltipPosition = (segment) => {
+  const handleSegmentHover = useCallback((segment, index) => {
+    if (!containerRef.current) return
+
+    const containerRect = containerRef.current.getBoundingClientRect()
     const midRad = (segment.midAngle * Math.PI) / 180
-    // Position tooltip outside the chart
-    const tooltipRadius = radius + 60
-    const x = centerX + tooltipRadius * Math.cos(midRad)
-    const y = centerY + tooltipRadius * Math.sin(midRad)
-    return { x, y, angle: segment.midAngle }
-  }
 
-  const handleSegmentHover = (segment, index) => {
+    // Position tooltip outside the chart based on segment angle
+    const tooltipRadius = radius + 50
+    const offsetX = tooltipRadius * Math.cos(midRad)
+    const offsetY = tooltipRadius * Math.sin(midRad)
+
     setHoveredIndex(index)
-    const pos = getTooltipPosition(segment)
-    setTooltipPosition(pos)
-  }
+    setTooltipAnchor({
+      x: containerRect.left + centerX + offsetX,
+      y: containerRect.top + centerY + offsetY,
+      width: 0,
+      height: 0,
+    })
+  }, [centerX, centerY, radius])
 
-  // Calculate total from data
+  const handleMouseLeave = useCallback(() => {
+    setHoveredIndex(null)
+    setTooltipAnchor(null)
+  }, [])
+
   const displayTotal = totalCost || data.reduce((sum, item) => sum + item.cost, 0)
 
   return (
     <div
       ref={containerRef}
-      className="relative"
-      style={{ width: size + 120, height: size + 40, margin: '0 auto' }}
+      className="relative flex items-center justify-center"
+      style={{ width: size, height: size }}
     >
       {/* SVG Chart */}
-      <svg
-        width={size + 120}
-        height={size + 40}
-        style={{ overflow: 'visible' }}
-      >
-        <g transform={`translate(60, 20)`}>
-          {/* Background ring */}
-          <circle
-            cx={centerX}
-            cy={centerY}
-            r={radius - 17}
-            fill="none"
-            stroke="rgba(255,255,255,0.03)"
-            strokeWidth="35"
-          />
+      <svg width={size} height={size} style={{ overflow: 'visible' }}>
+        {/* Background ring */}
+        <circle
+          cx={centerX}
+          cy={centerY}
+          r={radius - 17}
+          fill="none"
+          stroke="rgba(255,255,255,0.03)"
+          strokeWidth="35"
+        />
 
-          {/* Segments */}
-          {segments.map((segment) => {
-            const isHovered = hoveredIndex === segment.index
-            const hoverInner = innerRadius - 3
-            const hoverOuter = radius + 8
+        {/* Segments */}
+        {segments.map((segment) => {
+          const isHovered = hoveredIndex === segment.index
+          const hoverInner = innerRadius - 3
+          const hoverOuter = radius + 8
 
-            return (
-              <g key={segment.name}>
-                {/* Glow effect on hover */}
-                {isHovered && (
-                  <motion.path
-                    d={createArcPath(
-                      segment.startAngle,
-                      segment.endAngle - 0.8,
-                      hoverInner - 5,
-                      hoverOuter + 5
-                    )}
-                    fill={segment.color}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 0.3 }}
-                    style={{ filter: 'blur(15px)' }}
-                  />
-                )}
-
-                {/* Main segment */}
+          return (
+            <g key={segment.name}>
+              {/* Glow effect on hover */}
+              {isHovered && (
                 <motion.path
                   d={createArcPath(
                     segment.startAngle,
                     segment.endAngle - 0.8,
-                    isHovered ? hoverInner : innerRadius,
-                    isHovered ? hoverOuter : radius
+                    hoverInner - 5,
+                    hoverOuter + 5
                   )}
                   fill={segment.color}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{
-                    opacity: hoveredIndex === null || isHovered ? 1 : 0.5,
-                    scale: 1,
-                  }}
-                  transition={{
-                    duration: 0.4,
-                    delay: segment.index * 0.08,
-                    type: 'spring',
-                    stiffness: 200,
-                    damping: 25,
-                  }}
-                  onMouseEnter={() => handleSegmentHover(segment, segment.index)}
-                  onMouseLeave={() => setHoveredIndex(null)}
-                  style={{
-                    cursor: 'pointer',
-                    transformOrigin: `${centerX}px ${centerY}px`,
-                  }}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 0.3 }}
+                  style={{ filter: 'blur(15px)' }}
                 />
-              </g>
-            )
-          })}
+              )}
 
-          {/* Inner circle (donut hole) */}
-          <circle
-            cx={centerX}
-            cy={centerY}
-            r={innerRadius - 5}
-            fill="#0a0a0f"
-          />
+              {/* Main segment */}
+              <motion.path
+                d={createArcPath(
+                  segment.startAngle,
+                  segment.endAngle - 0.8,
+                  isHovered ? hoverInner : innerRadius,
+                  isHovered ? hoverOuter : radius
+                )}
+                fill={segment.color}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{
+                  opacity: hoveredIndex === null || isHovered ? 1 : 0.5,
+                  scale: 1,
+                }}
+                transition={{
+                  duration: 0.4,
+                  delay: segment.index * 0.08,
+                  type: 'spring',
+                  stiffness: 200,
+                  damping: 25,
+                }}
+                onMouseEnter={() => handleSegmentHover(segment, segment.index)}
+                onMouseLeave={handleMouseLeave}
+                style={{
+                  cursor: 'pointer',
+                  transformOrigin: `${centerX}px ${centerY}px`,
+                }}
+              />
+            </g>
+          )
+        })}
 
-          {/* Subtle inner ring */}
-          <circle
-            cx={centerX}
-            cy={centerY}
-            r={innerRadius - 5}
-            fill="none"
-            stroke="rgba(255,255,255,0.05)"
-            strokeWidth="1"
-          />
-        </g>
+        {/* Inner circle (donut hole) */}
+        <circle
+          cx={centerX}
+          cy={centerY}
+          r={innerRadius - 5}
+          fill="#0a0a0f"
+        />
+
+        {/* Subtle inner ring */}
+        <circle
+          cx={centerX}
+          cy={centerY}
+          r={innerRadius - 5}
+          fill="none"
+          stroke="rgba(255,255,255,0.05)"
+          strokeWidth="1"
+        />
       </svg>
 
-      {/* Center content - always shows total */}
+      {/* Center content */}
       <div
         className="absolute flex flex-col items-center justify-center pointer-events-none"
         style={{
-          left: 60 + centerX,
-          top: 20 + centerY,
-          transform: 'translate(-50%, -50%)',
           width: (innerRadius - 10) * 2,
           height: (innerRadius - 10) * 2,
         }}
@@ -193,73 +193,62 @@ export default function PieChart({ data, size = 220, totalCost }) {
             className="text-center"
           >
             <p className="text-gray-500 text-xs mb-0.5">
-              {hoveredIndex !== null ? 'Model' : 'Total Cost'}
+              {hoveredIndex !== null ? 'Usage' : 'Total Cost'}
             </p>
             <p className="font-display text-xl font-bold text-white">
               {hoveredIndex !== null
                 ? `${data[hoveredIndex].usage}%`
-                : `$${displayTotal.toFixed(0)}`
-              }
+                : `$${displayTotal.toFixed(0)}`}
             </p>
           </motion.div>
         </AnimatePresence>
       </div>
 
-      {/* External Tooltip */}
-      <AnimatePresence>
+      {/* Portal Tooltip - renders at document.body level to avoid clipping */}
+      <Tooltip
+        isVisible={hoveredIndex !== null}
+        anchorRect={tooltipAnchor}
+        position="radial"
+      >
         {hoveredIndex !== null && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ duration: 0.15, ease: 'easeOut' }}
-            className="absolute z-50 pointer-events-none"
-            style={{
-              left: 60 + tooltipPosition.x,
-              top: 20 + tooltipPosition.y,
-              transform: `translate(-50%, -50%)`,
-            }}
-          >
-            <div
-              className="px-4 py-3 rounded-xl bg-dark-700/95 backdrop-blur-sm border border-white/10 shadow-xl shadow-black/20"
-              style={{ minWidth: '140px' }}
-            >
-              {/* Color indicator and name */}
-              <div className="flex items-center gap-2 mb-2">
-                <div
-                  className="w-3 h-3 rounded-full flex-shrink-0"
-                  style={{ backgroundColor: data[hoveredIndex].color }}
-                />
-                <p className="text-white font-medium text-sm whitespace-nowrap">
-                  {data[hoveredIndex].fullName || data[hoveredIndex].name}
-                </p>
-              </div>
+          <TooltipContent className="min-w-[150px]">
+            {/* Color indicator and name */}
+            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-white/10">
+              <div
+                className="w-3 h-3 rounded-full flex-shrink-0"
+                style={{ backgroundColor: data[hoveredIndex].color }}
+              />
+              <p className="text-white font-medium text-sm">
+                {data[hoveredIndex].fullName || data[hoveredIndex].name}
+              </p>
+            </div>
 
-              {/* Stats */}
-              <div className="space-y-1">
-                <div className="flex justify-between items-center gap-4">
-                  <span className="text-gray-500 text-xs">Usage</span>
-                  <span className="text-white font-semibold text-sm">
-                    {data[hoveredIndex].usage}%
-                  </span>
-                </div>
-                <div className="flex justify-between items-center gap-4">
-                  <span className="text-gray-500 text-xs">Cost</span>
-                  <span className="text-accent-400 font-semibold text-sm">
-                    ${data[hoveredIndex].cost.toFixed(2)}
-                  </span>
-                </div>
+            {/* Stats */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center gap-4">
+                <span className="text-gray-500 text-xs">Usage</span>
+                <span className="text-white font-semibold text-sm">
+                  {data[hoveredIndex].usage}%
+                </span>
+              </div>
+              <div className="flex justify-between items-center gap-4">
+                <span className="text-gray-500 text-xs">Cost</span>
+                <span className="text-accent-400 font-semibold text-sm">
+                  ${data[hoveredIndex].cost.toFixed(2)}
+                </span>
+              </div>
+              {data[hoveredIndex].requests && (
                 <div className="flex justify-between items-center gap-4">
                   <span className="text-gray-500 text-xs">Requests</span>
                   <span className="text-gray-300 text-sm">
-                    {data[hoveredIndex].requests?.toLocaleString() || '—'}
+                    {data[hoveredIndex].requests.toLocaleString()}
                   </span>
                 </div>
-              </div>
+              )}
             </div>
-          </motion.div>
+          </TooltipContent>
         )}
-      </AnimatePresence>
+      </Tooltip>
     </div>
   )
 }
