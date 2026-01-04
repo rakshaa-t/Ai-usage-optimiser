@@ -41,17 +41,6 @@ export default function UsageChart({ data }) {
               
               {/* Bar */}
               <div className="relative w-full flex-1 flex items-end">
-                {/* Hover indicator dot */}
-                <motion.div
-                  className="absolute -top-2 left-1/2 transform -translate-x-1/2 w-2 h-2 rounded-full bg-accent-400"
-                  initial={{ opacity: 0, scale: 0 }}
-                  animate={{ 
-                    opacity: isHovered ? 0 : 0.5,
-                    scale: isHovered ? 0 : 1,
-                  }}
-                  transition={{ duration: 0.2 }}
-                />
-                
                 <motion.div
                   className="w-full rounded-t-lg cursor-pointer relative overflow-hidden"
                   initial={{ height: 0 }}
