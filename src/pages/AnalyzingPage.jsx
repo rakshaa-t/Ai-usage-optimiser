@@ -30,7 +30,7 @@ export default function AnalyzingPage({ file, onAnalysisComplete }) {
         if (prev >= 100) {
           clearInterval(progressInterval)
           clearInterval(stepInterval)
-          setTimeout(() => navigate('/dashboard'), 500)
+          setTimeout(() => navigate('/story'), 500)
           return 100
         }
         return prev + 2

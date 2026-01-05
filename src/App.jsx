@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import UploadPage from './pages/UploadPage'
 import AnalyzingPage from './pages/AnalyzingPage'
+import StoryDashboard from './pages/StoryDashboard'
 import DashboardPage from './pages/DashboardPage'
 import PrivacyPage from './pages/PrivacyPage'
 import BackgroundEffects from './components/BackgroundEffects'
@@ -58,20 +59,26 @@ function App() {
                 />
               } 
             />
-            <Route 
-              path="/analyzing" 
+            <Route
+              path="/analyzing"
               element={
-                <AnalyzingPage 
+                <AnalyzingPage
                   file={uploadedFile}
                   onAnalysisComplete={setAnalysisData}
                 />
-              } 
+              }
             />
-            <Route 
-              path="/dashboard" 
+            <Route
+              path="/story"
+              element={
+                <StoryDashboard data={analysisData} />
+              }
+            />
+            <Route
+              path="/dashboard"
               element={
                 <DashboardPage data={analysisData} />
-              } 
+              }
             />
             <Route 
               path="/privacy" 
