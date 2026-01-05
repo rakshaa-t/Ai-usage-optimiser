@@ -545,8 +545,8 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
 
       if (potentialSavings > 1) {
         recommendations.push({
-          title: 'Downgrade simple queries to cheaper models',
-          description: `${expensiveRequests.toLocaleString()} requests use expensive models. Analysis suggests ~40% could use GPT-3.5/Claude Haiku for routine tasks like summarization, formatting, or simple Q&A.`,
+          title: 'Use simpler models for basic tasks',
+          description: `You're using premium AI models for ${expensiveRequests.toLocaleString()} requests. For straightforward tasks like formatting text, answering simple questions, or summarizing content, lighter models work just as well at a fraction of the cost.`,
           savings: Math.round(potentialSavings),
           impact: potentialSavings > totalCost * 0.15 ? 'high' : 'medium',
           category: 'model-optimization',
@@ -560,8 +560,8 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
     if (extendedThinking.count > 0 && extendedThinking.cost > 0) {
       const savingsEstimate = extendedThinking.cost * 0.6 // Extended thinking costs ~2.5x more
       recommendations.push({
-        title: 'Reduce extended thinking usage',
-        description: `${extendedThinking.count} requests (${extendedThinking.percentage}%) use extended thinking mode, costing $${extendedThinking.cost.toFixed(2)}. Reserve this for complex reasoning tasks only.`,
+        title: 'Be selective with "deep thinking" mode',
+        description: `${extendedThinking.count} of your requests (${extendedThinking.percentage}%) used extended thinking, adding $${extendedThinking.cost.toFixed(2)} to your bill. This powerful feature is best saved for complex problems that truly need it.`,
         savings: Math.round(savingsEstimate),
         impact: savingsEstimate > totalCost * 0.1 ? 'high' : 'medium',
         category: 'feature-optimization',
@@ -572,8 +572,8 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
     // 3. Duplicate/cache opportunities
     if (duplicatePercentage > 5) {
       recommendations.push({
-        title: 'Implement response caching',
-        description: `${duplicatePercentage.toFixed(1)}% of requests appear similar (${duplicateCount} potential duplicates). Implement semantic caching to eliminate redundant API calls.`,
+        title: 'Save answers you use repeatedly',
+        description: `About ${duplicatePercentage.toFixed(0)}% of your requests look similar to ones you've made before. By saving and reusing these responses, you could skip ${duplicateCount.toLocaleString()} redundant API calls.`,
         savings: Math.round(duplicateCost * 0.8),
         impact: duplicateCost > totalCost * 0.1 ? 'high' : 'medium',
         category: 'caching',
@@ -588,8 +588,8 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
         // High input ratio suggests verbose prompts
         const estimatedPromptSavings = totalCost * 0.15
         recommendations.push({
-          title: 'Optimize prompt length',
-          description: `Input tokens are ${ioRatio.toFixed(1)}x output tokens. This high ratio suggests prompts may contain redundant context. Compress prompts using techniques like few-shot reduction or context summarization.`,
+          title: 'Trim down your prompts',
+          description: `Your prompts are ${ioRatio.toFixed(1)}x longer than the responses you get back. Try cutting unnecessary context, being more direct, or summarizing background information to reduce costs.`,
           savings: Math.round(estimatedPromptSavings),
           impact: 'medium',
           category: 'prompt-optimization',
@@ -601,8 +601,8 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
     // 5. High token usage per request
     if (avgTokensPerRequest > 4000) {
       recommendations.push({
-        title: 'Implement chunking for large contexts',
-        description: `Average ${avgTokensPerRequest.toLocaleString()} tokens per request. Break down large documents into smaller chunks and use map-reduce patterns to reduce per-request costs.`,
+        title: 'Break up large requests',
+        description: `Your average request uses ${avgTokensPerRequest.toLocaleString()} tokens — that's a lot! Consider splitting big documents into smaller pieces. You'll often get better results and spend less.`,
         savings: Math.round(totalCost * 0.12),
         impact: 'medium',
         category: 'architecture',
@@ -619,8 +619,8 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
 
       if (peakHours.length > 0) {
         recommendations.push({
-          title: 'Batch non-urgent requests',
-          description: `Peak usage at ${peakHours.map(h => `${h}:00`).join(', ')}. Schedule batch processing and non-time-sensitive requests during off-peak hours to manage rate limits and potentially access lower pricing tiers.`,
+          title: 'Schedule non-urgent tasks',
+          description: `Your busiest hours are around ${peakHours.map(h => `${h}:00`).join(', ')}. For tasks that don't need immediate responses, consider queuing them up to run during quieter times.`,
           savings: Math.round(totalCost * 0.05),
           impact: 'low',
           category: 'scheduling',
@@ -635,8 +635,8 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
       const claudeCost = claudeModels.reduce((sum, m) => sum + m.cost, 0)
       if (claudeCost > 0) {
         recommendations.push({
-          title: 'Use Claude\'s prompt caching',
-          description: `$${claudeCost.toFixed(2)} spent on Claude models. Enable prompt caching for repeated system prompts to reduce input token costs by up to 90% on cached portions.`,
+          title: 'Turn on prompt caching for Claude',
+          description: `You've spent $${claudeCost.toFixed(2)} on Claude models. If you're sending the same instructions repeatedly, enabling prompt caching can cut those repeated costs by up to 90%.`,
           savings: Math.round(claudeCost * 0.25),
           impact: claudeCost > totalCost * 0.3 ? 'high' : 'medium',
           category: 'provider-features',
@@ -648,8 +648,8 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
     // 8. Streaming optimization
     if (totalRequests > 100) {
       recommendations.push({
-        title: 'Implement streaming for long responses',
-        description: `With ${totalRequests.toLocaleString()} requests, use streaming responses to improve perceived latency and enable early termination for unwanted outputs, reducing wasted tokens.`,
+        title: 'Use streaming for faster feedback',
+        description: `With ${totalRequests.toLocaleString()} requests, streaming responses lets you see results as they're generated. You can stop early if something's off, saving tokens and getting answers faster.`,
         savings: Math.round(totalCost * 0.03),
         impact: 'low',
         category: 'ux-optimization',
