@@ -324,6 +324,8 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
     // Time-based analysis
     const dailyUsage = {}
     const hourlyUsage = {}
+    let minDate = null
+    let maxDate = null
 
     // Token efficiency metrics
     let totalDuration = 0
@@ -390,6 +392,10 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
         try {
           const date = new Date(timestampValue)
           if (!isNaN(date.getTime())) {
+            // Track date range
+            if (!minDate || date < minDate) minDate = date
+            if (!maxDate || date > maxDate) maxDate = date
+
             const dayKey = date.toISOString().split('T')[0]
             const hour = date.getHours()
 
@@ -487,6 +493,28 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
     // Calculate potential savings
     const potentialSavings = recommendations.reduce((sum, rec) => sum + rec.savings, 0)
 
+    // Calculate time period from dates
+    let timePeriod = null
+    if (minDate && maxDate) {
+      const diffMs = maxDate.getTime() - minDate.getTime()
+      const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24)) + 1 // Include both start and end day
+
+      if (diffDays <= 1) {
+        timePeriod = { value: 1, unit: 'day', label: '1 day', startDate: minDate, endDate: maxDate }
+      } else if (diffDays <= 7) {
+        timePeriod = { value: diffDays, unit: 'days', label: `${diffDays} days`, startDate: minDate, endDate: maxDate }
+      } else if (diffDays <= 14) {
+        const weeks = Math.round(diffDays / 7)
+        timePeriod = { value: weeks, unit: weeks === 1 ? 'week' : 'weeks', label: `${weeks} ${weeks === 1 ? 'week' : 'weeks'}`, startDate: minDate, endDate: maxDate }
+      } else if (diffDays <= 60) {
+        const weeks = Math.round(diffDays / 7)
+        timePeriod = { value: weeks, unit: 'weeks', label: `${weeks} weeks`, startDate: minDate, endDate: maxDate }
+      } else {
+        const months = Math.round(diffDays / 30)
+        timePeriod = { value: months, unit: months === 1 ? 'month' : 'months', label: `${months} ${months === 1 ? 'month' : 'months'}`, startDate: minDate, endDate: maxDate }
+      }
+    }
+
     return {
       totalSpent: Math.round(totalCost * 100) / 100,
       totalRequests,
@@ -497,6 +525,7 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
       weeklyUsage,
       potentialSavings: Math.round(potentialSavings),
       extendedThinking,
+      timePeriod,
       metrics: {
         avgCostPerRequest: Math.round(avgCostPerRequest * 10000) / 10000,
         avgTokensPerRequest: Math.round(avgTokensPerRequest),

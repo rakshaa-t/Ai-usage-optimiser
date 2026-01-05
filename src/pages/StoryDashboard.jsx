@@ -126,6 +126,7 @@ export default function StoryDashboard({ data }) {
       { day: 'Sun', requests: 105, cost: 18 },
     ],
     extendedThinking: { count: 0, cost: 0, percentage: 0 },
+    timePeriod: null,
     filesAnalyzed: 1
   }
 
@@ -134,8 +135,24 @@ export default function StoryDashboard({ data }) {
   const busiestDay = analysis.weeklyUsage.reduce((max, day) =>
     day.requests > max.requests ? day : max
   , analysis.weeklyUsage[0])
-  const avgPerDay = Math.round(analysis.totalSpent / 7)
-  const requestsPerDay = Math.round(analysis.totalRequests / 7)
+
+  // Calculate days in period for accurate daily averages
+  const daysInPeriod = analysis.timePeriod?.value
+    ? (analysis.timePeriod.unit === 'day' || analysis.timePeriod.unit === 'days'
+        ? analysis.timePeriod.value
+        : analysis.timePeriod.unit === 'week' || analysis.timePeriod.unit === 'weeks'
+          ? analysis.timePeriod.value * 7
+          : analysis.timePeriod.value * 30)
+    : 7
+
+  const avgPerDay = Math.round(analysis.totalSpent / daysInPeriod)
+  const requestsPerDay = Math.round(analysis.totalRequests / daysInPeriod)
+
+  // Format the time period for display
+  const periodLabel = analysis.timePeriod?.label || 'this period'
+  const periodDateRange = analysis.timePeriod?.startDate && analysis.timePeriod?.endDate
+    ? `${new Date(analysis.timePeriod.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(analysis.timePeriod.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+    : null
 
   // Build slides array
   const slides = [
@@ -255,16 +272,23 @@ export default function StoryDashboard({ data }) {
                       </div>
                     </RevealText>
                     <RevealText delay={0.2}>
-                      <p className="text-gray-400 text-sm uppercase tracking-wider mb-2">You invested</p>
+                      <p className="text-gray-400 text-sm uppercase tracking-wider mb-2">
+                        {periodDateRange ? `Over ${periodLabel}` : 'You invested'}
+                      </p>
                     </RevealText>
                     <RevealText delay={0.3}>
-                      <h2 className="font-display text-6xl md:text-7xl font-bold text-white mb-4">
+                      <h2 className="font-display text-6xl md:text-7xl font-bold text-white mb-2">
                         <CountUp value={analysis.totalSpent} prefix="$" duration={1500} />
                       </h2>
                     </RevealText>
+                    {periodDateRange && (
+                      <RevealText delay={0.4}>
+                        <p className="text-gray-500 text-sm mb-4">{periodDateRange}</p>
+                      </RevealText>
+                    )}
                     <RevealText delay={0.5}>
                       <p className="text-gray-400">
-                        in AI this period — that's <span className="text-white font-semibold">${avgPerDay}/day</span>
+                        That's about <span className="text-white font-semibold">${avgPerDay}/day</span> on AI
                       </p>
                     </RevealText>
                   </div>
@@ -319,7 +343,7 @@ export default function StoryDashboard({ data }) {
                     </RevealText>
                     <RevealText delay={0.5}>
                       <div className="flex justify-center">
-                        <PieChart data={analysis.models} size={200} totalCost={analysis.totalSpent} />
+                        <PieChart data={analysis.models} size={280} totalCost={analysis.totalSpent} />
                       </div>
                     </RevealText>
                   </div>
@@ -346,7 +370,7 @@ export default function StoryDashboard({ data }) {
                       </p>
                     </RevealText>
                     <RevealText delay={0.5}>
-                      <div className="bg-dark-800/50 rounded-2xl p-6 backdrop-blur-sm border border-white/5">
+                      <div className="bg-dark-800/50 rounded-2xl p-6 border border-white/5">
                         <UsageChart data={analysis.weeklyUsage} />
                       </div>
                     </RevealText>
@@ -579,17 +603,22 @@ export default function StoryDashboard({ data }) {
         )}
       </AnimatePresence>
 
-      {/* Skip to dashboard */}
-      <motion.button
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 2 }}
-        onClick={() => navigate('/dashboard')}
-        className="fixed bottom-8 right-6 z-40 px-4 py-2 rounded-lg bg-dark-800/80 backdrop-blur-sm border border-white/10 text-gray-400 text-sm hover:text-white hover:border-white/20 transition-all flex items-center gap-2"
-      >
-        Skip to Dashboard
-        <ArrowRight className="w-3 h-3" />
-      </motion.button>
+      {/* Skip to dashboard - hide on final slide */}
+      <AnimatePresence>
+        {currentSlide < totalSlides - 1 && (
+          <motion.button
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ delay: 2 }}
+            onClick={() => navigate('/dashboard')}
+            className="fixed bottom-8 right-6 z-40 px-4 py-2 rounded-lg bg-dark-800/80 backdrop-blur-sm border border-white/10 text-gray-400 text-sm hover:text-white hover:border-white/20 transition-all flex items-center gap-2"
+          >
+            Skip to Dashboard
+            <ArrowRight className="w-3 h-3" />
+          </motion.button>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
