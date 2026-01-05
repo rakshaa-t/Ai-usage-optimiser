@@ -95,17 +95,20 @@ export default function Tooltip({ children, isVisible, anchorRect, position = 't
 }
 
 /**
- * Simple tooltip wrapper for common use cases
+ * Neumorphic tooltip wrapper
  */
 export function TooltipContent({ children, className = '' }) {
   return (
-    <div className={`
-      px-3 py-2 rounded-lg
-      bg-dark-700/95 backdrop-blur-sm
-      border border-white/10
-      shadow-xl shadow-black/30
-      ${className}
-    `}>
+    <div
+      className={`
+        px-4 py-3 rounded-neu
+        bg-neu-bg
+        ${className}
+      `}
+      style={{
+        boxShadow: '4px 4px 8px #d1cec9, -4px -4px 8px #ffffff, 0 4px 12px rgba(0,0,0,0.1)',
+      }}
+    >
       {children}
     </div>
   )

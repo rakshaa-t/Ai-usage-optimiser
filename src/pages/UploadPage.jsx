@@ -2,7 +2,7 @@ import { useState, useRef, useCallback } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Upload, FileText, Sparkles, ArrowRight, Folder, X, Check, AlertCircle, FolderOpen, Shield, Brain, Zap } from 'lucide-react'
-import TiltCard from '../components/TiltCard'
+import NeuCard from '../components/NeuCard'
 import Papa from 'papaparse'
 
 // Maximum file size: 50MB
@@ -71,7 +71,6 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
   // Validate file before adding
   const validateFile = useCallback((file) => {
     const errors = []
-    const warnings = []
 
     // Check file size
     if (file.size > MAX_FILE_SIZE) {
@@ -83,7 +82,7 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
       errors.push(`${file.name} is not a CSV file`)
     }
 
-    return { errors, warnings, isValid: errors.length === 0 }
+    return { errors, isValid: errors.length === 0 }
   }, [])
 
   const processFiles = useCallback((files) => {
@@ -220,7 +219,7 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
           continue
         }
 
-        await new Promise((resolve, reject) => {
+        await new Promise((resolve) => {
           Papa.parse(file, {
             header: true,
             skipEmptyLines: true,
@@ -296,9 +295,8 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
     return null
   }
 
-  // Comprehensive analysis engine
+  // Comprehensive analysis engine (keeping the same logic)
   const analyzeData = (data, fileCount, headers) => {
-    // Column mappings
     const modelColumns = ['model', 'model_name', 'model_id', 'engine']
     const costColumns = ['cost', 'total_cost', 'price', 'amount', 'usd', 'total cost']
     const tokenColumns = ['tokens', 'total_tokens', 'token_count', 'usage', 'total tokens', 'input_tokens', 'output_tokens']
@@ -308,7 +306,6 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
     const timestampColumns = ['timestamp', 'date', 'created_at', 'time', 'datetime']
     const durationColumns = ['duration', 'response_time', 'latency', 'time_ms']
 
-    // Initialize metrics
     let totalCost = 0
     let totalTokens = 0
     let totalInputTokens = 0
@@ -316,43 +313,25 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
     const modelUsage = {}
     const modelCosts = {}
     const modelTokens = {}
-
-    // Extended thinking / Max Mode tracking
     let extendedThinkingCount = 0
     let extendedThinkingCost = 0
-
-    // Time-based analysis
     const dailyUsage = {}
     const hourlyUsage = {}
     let minDate = null
     let maxDate = null
-
-    // Token efficiency metrics
     let totalDuration = 0
     let requestsWithDuration = 0
-
-    // Duplicate detection
     const requestHashes = new Map()
     let duplicateCount = 0
     let duplicateCost = 0
 
-    // Prompt length analysis
-    const promptLengths = []
-
-    // Cost per model tracking
-    const costPerRequest = []
-
-    // Process each row
-    data.forEach((row, index) => {
-      // Extract cost
+    data.forEach((row) => {
       const costValue = findColumnValue(row, costColumns)
       const rowCost = costValue ? parseFloat(costValue) : 0
       if (!isNaN(rowCost) && rowCost > 0) {
         totalCost += rowCost
-        costPerRequest.push(rowCost)
       }
 
-      // Extract model
       const modelValue = findColumnValue(row, modelColumns)
       const model = modelValue ? modelValue.toString().trim() : 'Unknown'
       if (model && model !== 'Unknown') {
@@ -360,7 +339,6 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
         modelCosts[model] = (modelCosts[model] || 0) + rowCost
       }
 
-      // Extract tokens
       const tokenValue = findColumnValue(row, tokenColumns)
       if (tokenValue) {
         const tokens = parseInt(tokenValue)
@@ -370,13 +348,11 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
         }
       }
 
-      // Input/Output tokens breakdown
       const inputTokenValue = findColumnValue(row, inputTokenColumns)
       const outputTokenValue = findColumnValue(row, outputTokenColumns)
       if (inputTokenValue) totalInputTokens += parseInt(inputTokenValue) || 0
       if (outputTokenValue) totalOutputTokens += parseInt(outputTokenValue) || 0
 
-      // Max Mode / Extended Thinking detection
       const maxModeValue = findColumnValue(row, maxModeColumns)
       if (maxModeValue) {
         const mode = maxModeValue.toString().toLowerCase().trim()
@@ -386,13 +362,11 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
         }
       }
 
-      // Time-based analysis
       const timestampValue = findColumnValue(row, timestampColumns)
       if (timestampValue) {
         try {
           const date = new Date(timestampValue)
           if (!isNaN(date.getTime())) {
-            // Track date range
             if (!minDate || date < minDate) minDate = date
             if (!maxDate || date > maxDate) maxDate = date
 
@@ -410,7 +384,6 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
         } catch (e) {}
       }
 
-      // Duration tracking
       const durationValue = findColumnValue(row, durationColumns)
       if (durationValue) {
         const duration = parseFloat(durationValue)
@@ -420,7 +393,6 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
         }
       }
 
-      // Simple duplicate detection (based on model + approximate cost)
       const hashKey = `${model}-${Math.round(rowCost * 1000)}`
       if (requestHashes.has(hashKey)) {
         duplicateCount++
@@ -430,22 +402,19 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
       }
     })
 
-    // Calculate derived metrics
     const totalRequests = data.length
     const avgCostPerRequest = totalRequests > 0 ? totalCost / totalRequests : 0
     const avgTokensPerRequest = totalRequests > 0 ? totalTokens / totalRequests : 0
     const avgDuration = requestsWithDuration > 0 ? totalDuration / requestsWithDuration : 0
     const duplicatePercentage = totalRequests > 0 ? (duplicateCount / totalRequests) * 100 : 0
 
-    // Extended thinking metrics
     const extendedThinking = {
       count: extendedThinkingCount,
       cost: Math.round(extendedThinkingCost * 100) / 100,
       percentage: totalRequests > 0 ? Math.round((extendedThinkingCount / totalRequests) * 100) : 0
     }
 
-    // Generate model breakdown
-    const colors = ['#F97CF5', '#A855F7', '#8B5CF6', '#6366F1', '#3B82F6', '#06B6D4', '#10B981', '#F59E0B']
+    const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#DDA0DD', '#F7DC6F', '#85C1E9', '#D7BDE2']
     const modelEntries = Object.entries(modelUsage).sort((a, b) => b[1] - a[1])
     const totalModelRequests = modelEntries.reduce((sum, [_, count]) => sum + count, 0)
 
@@ -467,7 +436,6 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
       }
     })
 
-    // Generate dynamic recommendations based on actual data patterns
     const recommendations = generateSmartRecommendations({
       models,
       modelUsage,
@@ -487,17 +455,13 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
       hourlyUsage
     })
 
-    // Generate weekly usage from actual data or create realistic distribution
     const weeklyUsage = generateWeeklyUsage(dailyUsage, totalRequests, totalCost)
-
-    // Calculate potential savings
     const potentialSavings = recommendations.reduce((sum, rec) => sum + rec.savings, 0)
 
-    // Calculate time period from dates
     let timePeriod = null
     if (minDate && maxDate) {
       const diffMs = maxDate.getTime() - minDate.getTime()
-      const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24)) + 1 // Include both start and end day
+      const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24)) + 1
 
       if (diffDays <= 1) {
         timePeriod = { value: 1, unit: 'day', label: '1 day', startDate: minDate, endDate: maxDate }
@@ -537,17 +501,12 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
     }
   }
 
-  // Generate smart recommendations based on actual usage patterns
   const generateSmartRecommendations = (metrics) => {
     const recommendations = []
     const {
       models,
-      modelUsage,
-      modelCosts,
       totalCost,
       totalRequests,
-      totalTokens,
-      avgCostPerRequest,
       duplicateCount,
       duplicateCost,
       duplicatePercentage,
@@ -558,7 +517,6 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
       hourlyUsage
     } = metrics
 
-    // 1. Model downgrade opportunities
     const expensiveModels = models.filter(m =>
       m.fullName?.toLowerCase().includes('gpt-4') ||
       m.fullName?.toLowerCase().includes('claude-3-opus') ||
@@ -569,28 +527,25 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
     if (expensiveModels.length > 0) {
       const expensiveCost = expensiveModels.reduce((sum, m) => sum + m.cost, 0)
       const expensiveRequests = expensiveModels.reduce((sum, m) => sum + m.requests, 0)
-      // Estimate 40% of expensive model usage could use cheaper models
-      const potentialSavings = expensiveCost * 0.4 * 0.7 // 70% cost reduction on 40% of requests
+      const potentialSavings = expensiveCost * 0.4 * 0.7
 
       if (potentialSavings > 1) {
         recommendations.push({
           title: 'Use simpler models for basic tasks',
-          description: `You're using premium AI models for ${expensiveRequests.toLocaleString()} requests. For straightforward tasks like formatting text, answering simple questions, or summarizing content, lighter models work just as well at a fraction of the cost.`,
+          description: `You're using premium AI models for ${expensiveRequests.toLocaleString()} requests. For straightforward tasks, lighter models work just as well at a fraction of the cost.`,
           savings: Math.round(potentialSavings),
           impact: potentialSavings > totalCost * 0.15 ? 'high' : 'medium',
           category: 'model-optimization',
-          actionable: true,
-          details: expensiveModels.map(m => `${m.name}: ${m.requests} requests, $${m.cost.toFixed(2)}`).join(', ')
+          actionable: true
         })
       }
     }
 
-    // 2. Extended thinking optimization
     if (extendedThinking.count > 0 && extendedThinking.cost > 0) {
-      const savingsEstimate = extendedThinking.cost * 0.6 // Extended thinking costs ~2.5x more
+      const savingsEstimate = extendedThinking.cost * 0.6
       recommendations.push({
         title: 'Be selective with "deep thinking" mode',
-        description: `${extendedThinking.count} of your requests (${extendedThinking.percentage}%) used extended thinking, adding $${extendedThinking.cost.toFixed(2)} to your bill. This powerful feature is best saved for complex problems that truly need it.`,
+        description: `${extendedThinking.count} requests (${extendedThinking.percentage}%) used extended thinking, adding $${extendedThinking.cost.toFixed(2)}. Save this for complex problems.`,
         savings: Math.round(savingsEstimate),
         impact: savingsEstimate > totalCost * 0.1 ? 'high' : 'medium',
         category: 'feature-optimization',
@@ -598,11 +553,10 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
       })
     }
 
-    // 3. Duplicate/cache opportunities
     if (duplicatePercentage > 5) {
       recommendations.push({
         title: 'Save answers you use repeatedly',
-        description: `About ${duplicatePercentage.toFixed(0)}% of your requests look similar to ones you've made before. By saving and reusing these responses, you could skip ${duplicateCount.toLocaleString()} redundant API calls.`,
+        description: `About ${duplicatePercentage.toFixed(0)}% of requests look similar. Cache responses to skip ${duplicateCount.toLocaleString()} redundant API calls.`,
         savings: Math.round(duplicateCost * 0.8),
         impact: duplicateCost > totalCost * 0.1 ? 'high' : 'medium',
         category: 'caching',
@@ -610,15 +564,13 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
       })
     }
 
-    // 4. Token efficiency - Input/Output ratio analysis
     if (totalInputTokens > 0 && totalOutputTokens > 0) {
       const ioRatio = totalInputTokens / totalOutputTokens
       if (ioRatio > 3) {
-        // High input ratio suggests verbose prompts
         const estimatedPromptSavings = totalCost * 0.15
         recommendations.push({
           title: 'Trim down your prompts',
-          description: `Your prompts are ${ioRatio.toFixed(1)}x longer than the responses you get back. Try cutting unnecessary context, being more direct, or summarizing background information to reduce costs.`,
+          description: `Your prompts are ${ioRatio.toFixed(1)}x longer than responses. Try being more concise to reduce costs.`,
           savings: Math.round(estimatedPromptSavings),
           impact: 'medium',
           category: 'prompt-optimization',
@@ -627,11 +579,10 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
       }
     }
 
-    // 5. High token usage per request
     if (avgTokensPerRequest > 4000) {
       recommendations.push({
         title: 'Break up large requests',
-        description: `Your average request uses ${avgTokensPerRequest.toLocaleString()} tokens — that's a lot! Consider splitting big documents into smaller pieces. You'll often get better results and spend less.`,
+        description: `Average request uses ${avgTokensPerRequest.toLocaleString()} tokens. Split big documents for better results and lower costs.`,
         savings: Math.round(totalCost * 0.12),
         impact: 'medium',
         category: 'architecture',
@@ -639,7 +590,6 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
       })
     }
 
-    // 6. Off-peak scheduling
     if (Object.keys(hourlyUsage).length > 0) {
       const peakHours = Object.entries(hourlyUsage)
         .sort((a, b) => b[1].requests - a[1].requests)
@@ -649,7 +599,7 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
       if (peakHours.length > 0) {
         recommendations.push({
           title: 'Schedule non-urgent tasks',
-          description: `Your busiest hours are around ${peakHours.map(h => `${h}:00`).join(', ')}. For tasks that don't need immediate responses, consider queuing them up to run during quieter times.`,
+          description: `Busiest hours: ${peakHours.map(h => `${h}:00`).join(', ')}. Queue non-urgent tasks for quieter times.`,
           savings: Math.round(totalCost * 0.05),
           impact: 'low',
           category: 'scheduling',
@@ -658,14 +608,13 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
       }
     }
 
-    // 7. Model-specific optimizations
     const claudeModels = models.filter(m => m.fullName?.toLowerCase().includes('claude'))
     if (claudeModels.length > 0) {
       const claudeCost = claudeModels.reduce((sum, m) => sum + m.cost, 0)
       if (claudeCost > 0) {
         recommendations.push({
           title: 'Turn on prompt caching for Claude',
-          description: `You've spent $${claudeCost.toFixed(2)} on Claude models. If you're sending the same instructions repeatedly, enabling prompt caching can cut those repeated costs by up to 90%.`,
+          description: `$${claudeCost.toFixed(2)} spent on Claude. Enable prompt caching to cut repeated instruction costs by up to 90%.`,
           savings: Math.round(claudeCost * 0.25),
           impact: claudeCost > totalCost * 0.3 ? 'high' : 'medium',
           category: 'provider-features',
@@ -674,11 +623,10 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
       }
     }
 
-    // 8. Streaming optimization
     if (totalRequests > 100) {
       recommendations.push({
         title: 'Use streaming for faster feedback',
-        description: `With ${totalRequests.toLocaleString()} requests, streaming responses lets you see results as they're generated. You can stop early if something's off, saving tokens and getting answers faster.`,
+        description: `With ${totalRequests.toLocaleString()} requests, streaming lets you see results early and stop if something's off.`,
         savings: Math.round(totalCost * 0.03),
         impact: 'low',
         category: 'ux-optimization',
@@ -686,7 +634,6 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
       })
     }
 
-    // Sort by savings and take top recommendations
     return recommendations
       .sort((a, b) => b.savings - a.savings)
       .slice(0, 6)
@@ -696,11 +643,9 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
       }))
   }
 
-  // Generate weekly usage data
   const generateWeeklyUsage = (dailyUsage, totalRequests, totalCost) => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
-    // If we have actual daily data, aggregate by day of week
     if (Object.keys(dailyUsage).length > 0) {
       const weekdayAgg = {}
       days.forEach(day => { weekdayAgg[day] = { requests: 0, cost: 0, count: 0 } })
@@ -724,7 +669,6 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
       }))
     }
 
-    // Fallback: distribute based on typical patterns
     const distribution = [0.14, 0.17, 0.16, 0.18, 0.16, 0.11, 0.08]
     return ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day, i) => ({
       day,
@@ -736,7 +680,7 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
   const totalSize = uploadedFiles.reduce((acc, file) => acc + file.size, 0)
 
   return (
-    <div className="relative min-h-screen flex flex-col items-center justify-center px-6 py-12">
+    <div className="relative min-h-screen flex flex-col items-center justify-center px-6 py-12 bg-neu-bg">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -746,31 +690,31 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
       >
         <div className="flex items-center justify-center gap-3 mb-6 flex-wrap">
           <motion.div
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-full glass"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full shadow-neu-sm bg-neu-bg"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.2 }}
           >
-            <Sparkles className="w-4 h-4 text-accent-400" />
-            <span className="text-sm text-gray-300">AI-Powered Analysis</span>
+            <Sparkles className="w-4 h-4 text-coral-500" />
+            <span className="text-sm text-text-secondary">AI-Powered Analysis</span>
           </motion.div>
-          
+
           <motion.div
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-500/30"
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-coral-100 border border-coral-200"
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.25 }}
           >
-            <span className="text-xs font-semibold text-yellow-400">BETA</span>
+            <span className="text-xs font-semibold text-coral-600">BETA</span>
           </motion.div>
         </div>
 
-        <h1 className="font-display text-5xl md:text-6xl font-bold mb-4">
-          <span className="text-white">AI Usage </span>
-          <span className="text-gradient">Optimizer</span>
+        <h1 className="font-display text-4xl md:text-5xl font-bold mb-4 text-text-primary">
+          AI Usage{' '}
+          <span className="text-coral-500">Optimizer</span>
         </h1>
 
-        <p className="text-gray-400 text-lg max-w-md mx-auto">
+        <p className="text-text-secondary text-base max-w-md mx-auto">
           Upload your API usage data and discover opportunities to reduce costs and optimize performance
         </p>
       </motion.div>
@@ -782,11 +726,11 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
         transition={{ duration: 0.6, delay: 0.3 }}
         className="w-full max-w-2xl"
       >
-        <TiltCard tiltAmount={8} glowIntensity={0.5}>
+        <NeuCard className="p-0" padding={false}>
           <div
             className={`
-              relative p-8 md:p-10 transition-all duration-300
-              ${isDragging ? 'bg-accent-500/10' : ''}
+              relative p-8 md:p-10 transition-all duration-300 rounded-neu
+              ${isDragging ? 'bg-coral-50' : ''}
             `}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -819,72 +763,44 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
                   exit={{ opacity: 0 }}
                   className="text-center"
                 >
-                  {/* Animated drop zone icon */}
+                  {/* Neumorphic drop zone */}
                   <motion.div
                     className={`
                       relative w-24 h-24 mx-auto mb-6 rounded-2xl flex items-center justify-center
                       ${isDragging
-                        ? 'bg-accent-500/20 border-accent-400'
-                        : 'bg-dark-600/50 border-white/10'
+                        ? 'shadow-neu-inset bg-coral-50'
+                        : 'shadow-neu bg-neu-bg'
                       }
-                      border-2 border-dashed transition-all duration-300
+                      transition-all duration-300
                     `}
-                    animate={isDragging ? {
-                      scale: 1.1,
-                      borderColor: 'rgba(217, 70, 239, 0.8)'
-                    } : {
-                      scale: 1
-                    }}
+                    animate={isDragging ? { scale: 1.05 } : { scale: 1 }}
                   >
                     <motion.div
                       animate={isDragging ? {
-                        y: [0, -8, 0],
+                        y: [0, -6, 0],
                         transition: { repeat: Infinity, duration: 0.8 }
                       } : {}}
                     >
                       {isDragging ? (
-                        <FolderOpen className="w-10 h-10 text-accent-400" />
+                        <FolderOpen className="w-10 h-10 text-coral-500" />
                       ) : (
-                        <Upload className="w-10 h-10 text-gray-400" />
+                        <Upload className="w-10 h-10 text-text-muted" />
                       )}
                     </motion.div>
-
-                    {isDragging && (
-                      <>
-                        <motion.div
-                          className="absolute inset-0 rounded-2xl border-2 border-accent-400"
-                          initial={{ opacity: 0.6, scale: 1 }}
-                          animate={{ opacity: 0, scale: 1.5 }}
-                          transition={{ duration: 1, repeat: Infinity }}
-                        />
-                        <motion.div
-                          className="absolute inset-0 rounded-2xl border-2 border-accent-400"
-                          initial={{ opacity: 0.6, scale: 1 }}
-                          animate={{ opacity: 0, scale: 1.5 }}
-                          transition={{ duration: 1, repeat: Infinity, delay: 0.5 }}
-                        />
-                      </>
-                    )}
                   </motion.div>
 
-                  <h3 className="font-display text-xl font-semibold text-white mb-2">
+                  <h3 className="font-display text-xl font-semibold text-text-primary mb-2">
                     {isDragging ? 'Drop files or folder here' : 'Upload Usage Data'}
                   </h3>
 
-                  <p className="text-gray-400 text-sm mb-6">
+                  <p className="text-text-muted text-sm mb-6">
                     Drag & drop CSV files or an entire folder
                   </p>
 
-                  <div className="flex gap-3 justify-center flex-wrap">
+                  <div className="flex gap-4 justify-center flex-wrap">
                     <motion.button
                       onClick={() => fileInputRef.current?.click()}
-                      className="
-                        px-5 py-2.5 rounded-xl font-medium text-sm
-                        bg-dark-600/50 border border-white/10
-                        text-gray-300 hover:text-white hover:border-accent-500/50
-                        transition-all duration-300 flex items-center gap-2
-                        hover:bg-dark-500/50
-                      "
+                      className="neu-btn"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
@@ -894,14 +810,7 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
 
                     <motion.button
                       onClick={() => folderInputRef.current?.click()}
-                      className="
-                        px-6 py-2.5 rounded-xl font-medium text-sm
-                        bg-gradient-to-r from-accent-600 to-accent-500
-                        hover:from-accent-500 hover:to-accent-400
-                        text-white shadow-lg shadow-accent-500/25
-                        transition-all duration-300 hover:shadow-accent-500/40
-                        flex items-center gap-2
-                      "
+                      className="neu-btn-primary"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
@@ -911,7 +820,7 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
                   </div>
 
                   {/* Validation info */}
-                  <div className="flex items-center justify-center gap-4 mt-6 text-gray-500 text-xs">
+                  <div className="flex items-center justify-center gap-4 mt-6 text-text-muted text-xs">
                     <span className="flex items-center gap-1">
                       <Shield className="w-3 h-3" />
                       Max 50MB per file
@@ -936,22 +845,22 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
                         transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-                        className="w-10 h-10 rounded-xl bg-accent-500/20 border border-accent-400/30 flex items-center justify-center"
+                        className="w-10 h-10 rounded-xl shadow-neu flex items-center justify-center bg-neu-bg"
                       >
-                        <Check className="w-5 h-5 text-accent-400" />
+                        <Check className="w-5 h-5 text-teal-400" />
                       </motion.div>
                       <div>
-                        <h3 className="font-display text-lg font-semibold text-white">
+                        <h3 className="font-display text-lg font-semibold text-text-primary">
                           {uploadedFiles.length} {uploadedFiles.length === 1 ? 'File' : 'Files'} Ready
                         </h3>
-                        <p className="text-gray-500 text-xs">
+                        <p className="text-text-muted text-xs">
                           {(totalSize / 1024).toFixed(1)} KB total
                         </p>
                       </div>
                     </div>
                     <button
                       onClick={clearAllFiles}
-                      className="text-gray-500 hover:text-red-400 text-sm transition-colors"
+                      className="text-text-muted hover:text-coral-500 text-sm transition-colors"
                     >
                       Clear all
                     </button>
@@ -967,22 +876,22 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
                           animate={{ opacity: 1, x: 0 }}
                           exit={{ opacity: 0, x: 20, height: 0 }}
                           transition={{ delay: index * 0.05 }}
-                          className="flex items-center gap-3 p-3 rounded-xl bg-dark-700/50 border border-white/5 group hover:border-accent-500/20 transition-colors"
+                          className="flex items-center gap-3 p-3 rounded-xl shadow-neu-inset-sm bg-neu-bg group hover:shadow-neu-inset transition-shadow"
                         >
-                          <div className="w-8 h-8 rounded-lg bg-accent-500/10 flex items-center justify-center flex-shrink-0">
-                            <FileText className="w-4 h-4 text-accent-400" />
+                          <div className="w-8 h-8 rounded-lg shadow-neu-sm flex items-center justify-center flex-shrink-0 bg-neu-bg">
+                            <FileText className="w-4 h-4 text-coral-500" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm text-white truncate">
+                            <p className="text-sm text-text-primary truncate">
                               {file.relativePath || file.name}
                             </p>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-text-muted">
                               {(file.size / 1024).toFixed(1)} KB
                             </p>
                           </div>
                           <button
                             onClick={() => removeFile(index)}
-                            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-red-500/20 text-gray-500 hover:text-red-400 transition-all"
+                            className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-coral-100 text-text-muted hover:text-coral-500 transition-all"
                           >
                             <X className="w-4 h-4" />
                           </button>
@@ -994,16 +903,15 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
                   {/* Add more files zone */}
                   <div
                     className={`
-                      p-4 rounded-xl border-2 border-dashed mb-6 text-center cursor-pointer
-                      transition-all duration-300
+                      p-4 rounded-xl mb-6 text-center cursor-pointer transition-all duration-300
                       ${isDragging
-                        ? 'border-accent-400 bg-accent-500/10'
-                        : 'border-dark-500 hover:border-accent-500/30 hover:bg-dark-700/30'
+                        ? 'shadow-neu-inset bg-coral-50'
+                        : 'shadow-neu-inset-sm hover:shadow-neu-inset bg-neu-bg'
                       }
                     `}
                     onClick={() => fileInputRef.current?.click()}
                   >
-                    <p className="text-gray-400 text-sm">
+                    <p className="text-text-muted text-sm">
                       {isDragging ? 'Drop to add more files' : 'Drop or click to add more files'}
                     </p>
                   </div>
@@ -1015,11 +923,11 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="mb-4 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20"
+                        className="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200"
                       >
-                        <p className="text-yellow-400 text-xs font-medium mb-1">Warnings:</p>
+                        <p className="text-amber-700 text-xs font-medium mb-1">Warnings:</p>
                         {validationWarnings.map((warning, i) => (
-                          <p key={i} className="text-yellow-400/70 text-xs">{warning}</p>
+                          <p key={i} className="text-amber-600 text-xs">{warning}</p>
                         ))}
                       </motion.div>
                     )}
@@ -1033,12 +941,12 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
                       className="mb-6"
                     >
                       <div className="flex justify-between text-sm mb-2">
-                        <span className="text-gray-400">Processing files...</span>
-                        <span className="text-accent-400">{processingProgress}%</span>
+                        <span className="text-text-secondary">Processing files...</span>
+                        <span className="text-coral-500">{processingProgress}%</span>
                       </div>
-                      <div className="h-2 bg-dark-700 rounded-full overflow-hidden">
+                      <div className="h-2 rounded-full overflow-hidden shadow-neu-inset-sm bg-neu-bg">
                         <motion.div
-                          className="h-full bg-gradient-to-r from-accent-600 to-accent-400 rounded-full"
+                          className="h-full bg-gradient-to-r from-coral-500 to-coral-400 rounded-full"
                           initial={{ width: 0 }}
                           animate={{ width: `${processingProgress}%` }}
                           transition={{ duration: 0.3 }}
@@ -1051,12 +959,7 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
                   <div className="flex gap-3 justify-center">
                     <motion.button
                       onClick={() => folderInputRef.current?.click()}
-                      className="
-                        px-5 py-2.5 rounded-xl font-medium text-sm
-                        bg-dark-600/50 border border-white/10
-                        text-gray-300 hover:text-white hover:border-white/20
-                        transition-all duration-300 flex items-center gap-2
-                      "
+                      className="neu-btn"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
@@ -1067,15 +970,7 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
                     <motion.button
                       onClick={handleAnalyze}
                       disabled={isProcessing}
-                      className="
-                        px-8 py-2.5 rounded-xl font-medium text-sm
-                        bg-gradient-to-r from-accent-600 to-accent-500
-                        hover:from-accent-500 hover:to-accent-400
-                        text-white shadow-lg shadow-accent-500/25
-                        transition-all duration-300 hover:shadow-accent-500/40
-                        disabled:opacity-50 disabled:cursor-not-allowed
-                        flex items-center gap-2
-                      "
+                      className="neu-btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
                       whileHover={!isProcessing ? { scale: 1.02 } : {}}
                       whileTap={!isProcessing ? { scale: 0.98 } : {}}
                     >
@@ -1107,15 +1002,15 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0 }}
-                  className="flex items-start gap-2 mt-4 p-3 rounded-lg bg-red-500/10 border border-red-500/20"
+                  className="flex items-start gap-2 mt-4 p-3 rounded-lg bg-coral-50 border border-coral-200"
                 >
-                  <AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
-                  <p className="text-red-400 text-sm">{error}</p>
+                  <AlertCircle className="w-4 h-4 text-coral-500 flex-shrink-0 mt-0.5" />
+                  <p className="text-coral-600 text-sm">{error}</p>
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
-        </TiltCard>
+        </NeuCard>
       </motion.div>
 
       {/* Features */}
@@ -1123,7 +1018,7 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.6 }}
-        className="flex flex-wrap justify-center gap-6 mt-12 text-sm text-gray-500"
+        className="flex flex-wrap justify-center gap-6 mt-12 text-sm text-text-muted"
       >
         {[
           { label: 'Smart Cost Analysis', icon: Brain },
@@ -1138,7 +1033,7 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.7 + i * 0.1 }}
           >
-            <feature.icon className="w-4 h-4 text-accent-400/60" />
+            <feature.icon className="w-4 h-4 text-coral-400" />
             {feature.label}
           </motion.div>
         ))}
@@ -1153,7 +1048,7 @@ export default function UploadPage({ onFileUpload, onAnalysisComplete }) {
       >
         <Link
           to="/privacy"
-          className="inline-flex items-center gap-2 text-xs text-gray-500 hover:text-gray-400 transition-colors"
+          className="inline-flex items-center gap-2 text-xs text-text-muted hover:text-text-secondary transition-colors"
         >
           <Shield className="w-3 h-3" />
           <span>Privacy Policy</span>

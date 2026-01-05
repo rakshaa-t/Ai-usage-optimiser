@@ -6,7 +6,6 @@ import AnalyzingPage from './pages/AnalyzingPage'
 import StoryDashboard from './pages/StoryDashboard'
 import DashboardPage from './pages/DashboardPage'
 import PrivacyPage from './pages/PrivacyPage'
-import BackgroundEffects from './components/BackgroundEffects'
 import ErrorBoundary from './components/ErrorBoundary'
 
 function App() {
@@ -43,10 +42,7 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <div className="relative min-h-screen overflow-hidden">
-        {/* Global background effects */}
-        <BackgroundEffects />
-        
+      <div className="relative min-h-screen bg-neu-bg">
         {/* Main content */}
         <AnimatePresence mode="wait">
           <Routes>

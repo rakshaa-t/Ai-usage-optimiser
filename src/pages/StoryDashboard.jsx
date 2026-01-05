@@ -12,7 +12,6 @@ import {
   Download,
   RotateCcw,
   LayoutDashboard,
-  ArrowRight,
   CheckCircle2,
   Clock,
   Target
@@ -29,7 +28,6 @@ function CountUp({ value, prefix = '', suffix = '', duration = 2000, decimals = 
 
   useEffect(() => {
     if (!isInView) return
-
     let start = 0
     const end = parseFloat(value)
     const increment = end / (duration / 16)
@@ -42,7 +40,6 @@ function CountUp({ value, prefix = '', suffix = '', duration = 2000, decimals = 
         setCount(start)
       }
     }, 16)
-
     return () => clearInterval(timer)
   }, [isInView, value, duration])
 
@@ -54,21 +51,14 @@ function CountUp({ value, prefix = '', suffix = '', duration = 2000, decimals = 
 }
 
 // Single slide wrapper with scroll-snap
-function Slide({ children, className = '', bgGlow }) {
+function Slide({ children, className = '' }) {
   return (
     <section className={`
       min-h-screen w-full snap-start snap-always
       flex flex-col items-center justify-center
-      px-6 py-12 relative overflow-hidden
+      px-6 py-12 relative overflow-hidden bg-neu-bg
       ${className}
     `}>
-      {/* Optional background glow */}
-      {bgGlow && (
-        <div
-          className="absolute w-[600px] h-[600px] rounded-full opacity-20 blur-[120px] pointer-events-none"
-          style={{ background: bgGlow }}
-        />
-      )}
       <div className="relative z-10 w-full max-w-2xl mx-auto">
         {children}
       </div>
@@ -101,15 +91,14 @@ export default function StoryDashboard({ data }) {
   const [collectedSavings, setCollectedSavings] = useState(0)
   const [showSavingsPopup, setShowSavingsPopup] = useState(false)
 
-  // Default data fallback
   const analysis = data || {
     totalSpent: 229,
     totalRequests: 1250,
     potentialSavings: 110,
     models: [
-      { name: 'GPT-4', usage: 45, cost: 103, color: '#F97CF5', requests: 562 },
-      { name: 'GPT-3.5', usage: 30, cost: 69, color: '#A855F7', requests: 375 },
-      { name: 'Claude', usage: 25, cost: 57, color: '#8B5CF6', requests: 313 },
+      { name: 'GPT-4', usage: 45, cost: 103, color: '#FF6B6B', requests: 562 },
+      { name: 'GPT-3.5', usage: 30, cost: 69, color: '#4ECDC4', requests: 375 },
+      { name: 'Claude', usage: 25, cost: 57, color: '#45B7D1', requests: 313 },
     ],
     recommendations: [
       { title: 'Switch to lighter models', description: 'Use GPT-3.5 for simple tasks', savings: 45, impact: 'high' },
@@ -130,13 +119,9 @@ export default function StoryDashboard({ data }) {
     filesAnalyzed: 1
   }
 
-  // Calculate derived values
   const topModel = analysis.models[0]
-  const busiestDay = analysis.weeklyUsage.reduce((max, day) =>
-    day.requests > max.requests ? day : max
-  , analysis.weeklyUsage[0])
+  const busiestDay = analysis.weeklyUsage.reduce((max, day) => day.requests > max.requests ? day : max, analysis.weeklyUsage[0])
 
-  // Calculate days in period for accurate daily averages
   const daysInPeriod = analysis.timePeriod?.value
     ? (analysis.timePeriod.unit === 'day' || analysis.timePeriod.unit === 'days'
         ? analysis.timePeriod.value
@@ -147,14 +132,11 @@ export default function StoryDashboard({ data }) {
 
   const avgPerDay = Math.round(analysis.totalSpent / daysInPeriod)
   const requestsPerDay = Math.round(analysis.totalRequests / daysInPeriod)
-
-  // Format the time period for display
   const periodLabel = analysis.timePeriod?.label || 'this period'
   const periodDateRange = analysis.timePeriod?.startDate && analysis.timePeriod?.endDate
     ? `${new Date(analysis.timePeriod.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${new Date(analysis.timePeriod.endDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
     : null
 
-  // Build slides array
   const slides = [
     { id: 'intro', type: 'intro' },
     { id: 'spend', type: 'spend' },
@@ -172,34 +154,25 @@ export default function StoryDashboard({ data }) {
   })
 
   slides.push({ id: 'summary', type: 'summary' })
-
   const totalSlides = slides.length
 
-  // Track scroll position
   useEffect(() => {
     const container = containerRef.current
     if (!container) return
-
     const handleScroll = () => {
       const scrollPos = container.scrollTop
       const slideHeight = window.innerHeight
       const newSlide = Math.round(scrollPos / slideHeight)
       setCurrentSlide(Math.min(newSlide, totalSlides - 1))
     }
-
     container.addEventListener('scroll', handleScroll)
     return () => container.removeEventListener('scroll', handleScroll)
   }, [totalSlides])
 
-  // Scroll to slide
   const scrollToSlide = useCallback((index) => {
-    containerRef.current?.scrollTo({
-      top: index * window.innerHeight,
-      behavior: 'smooth'
-    })
+    containerRef.current?.scrollTo({ top: index * window.innerHeight, behavior: 'smooth' })
   }, [])
 
-  // Collect savings (wow factor)
   const collectSavings = useCallback((amount) => {
     setCollectedSavings(prev => {
       const newTotal = prev + amount
@@ -209,12 +182,13 @@ export default function StoryDashboard({ data }) {
     })
   }, [])
 
-  // Export PDF
   const handleExport = async () => {
     const doc = new jsPDF()
     doc.setFontSize(20)
+    doc.setTextColor(255, 107, 107)
     doc.text('AI Usage Report', 105, 20, { align: 'center' })
     doc.setFontSize(12)
+    doc.setTextColor(74, 74, 74)
     doc.text(`Total Spent: $${analysis.totalSpent}`, 20, 40)
     doc.text(`Potential Savings: $${analysis.potentialSavings}`, 20, 50)
     doc.text(`Total Requests: ${analysis.totalRequests}`, 20, 60)
@@ -222,38 +196,39 @@ export default function StoryDashboard({ data }) {
   }
 
   return (
-    <div className="relative h-screen bg-dark-900">
-      {/* Scroll container */}
-      <div
-        ref={containerRef}
-        className="h-full overflow-y-auto snap-y snap-mandatory scroll-smooth"
-      >
+    <div className="relative h-screen bg-neu-bg">
+      <div ref={containerRef} className="h-full overflow-y-auto snap-y snap-mandatory scroll-smooth">
         {slides.map((slide, index) => {
           switch (slide.type) {
             case 'intro':
               return (
-                <Slide key={slide.id} bgGlow="radial-gradient(circle, rgba(217,70,239,0.3) 0%, transparent 70%)">
+                <Slide key={slide.id}>
                   <div className="text-center">
                     <RevealText>
-                      <Sparkles className="w-12 h-12 text-accent-400 mx-auto mb-6" />
+                      <div className="w-14 h-14 rounded-xl shadow-neu-sm flex items-center justify-center mx-auto mb-10 bg-neu-bg">
+                        <Sparkles className="w-6 h-6 text-text-muted" />
+                      </div>
                     </RevealText>
-                    <RevealText delay={0.2}>
-                      <h1 className="font-display text-4xl md:text-5xl font-bold text-white mb-4">
-                        Your AI Usage
-                        <span className="text-gradient block">Story</span>
+                    <RevealText delay={0.15}>
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted mb-4">Your AI Usage</p>
+                    </RevealText>
+                    <RevealText delay={0.25}>
+                      <h1 
+                        className="font-display font-extrabold text-text-primary mb-6"
+                        style={{ fontSize: 'clamp(72px, 15vw, 140px)', lineHeight: 0.95, letterSpacing: '-0.03em' }}
+                      >
+                        Story
                       </h1>
                     </RevealText>
                     <RevealText delay={0.4}>
-                      <p className="text-gray-400 text-lg mb-8">
-                        Let's explore how you've been using AI
-                      </p>
+                      <p className="text-lg text-text-secondary mb-12">Let's explore how you've been using AI</p>
                     </RevealText>
-                    <RevealText delay={0.6}>
+                    <RevealText delay={0.55}>
                       <motion.button
                         onClick={() => scrollToSlide(1)}
-                        className="px-8 py-3 rounded-xl bg-gradient-to-r from-accent-600 to-accent-500 text-white font-medium shadow-lg shadow-accent-500/25"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
+                        className="neu-btn-primary px-10 py-4 text-lg"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
                       >
                         Begin Journey
                       </motion.button>
@@ -264,31 +239,34 @@ export default function StoryDashboard({ data }) {
 
             case 'spend':
               return (
-                <Slide key={slide.id} bgGlow="radial-gradient(circle, rgba(249,124,245,0.2) 0%, transparent 70%)">
+                <Slide key={slide.id}>
                   <div className="text-center">
                     <RevealText>
-                      <div className="w-16 h-16 rounded-2xl bg-accent-500/20 flex items-center justify-center mx-auto mb-6">
-                        <DollarSign className="w-8 h-8 text-accent-400" />
+                      <div className="w-12 h-12 rounded-xl shadow-neu-sm flex items-center justify-center mx-auto mb-8 bg-neu-bg">
+                        <DollarSign className="w-5 h-5 text-text-muted" />
                       </div>
                     </RevealText>
-                    <RevealText delay={0.2}>
-                      <p className="text-gray-400 text-sm uppercase tracking-wider mb-2">
+                    <RevealText delay={0.15}>
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted mb-6">
                         {periodDateRange ? `Over ${periodLabel}` : 'You invested'}
                       </p>
                     </RevealText>
-                    <RevealText delay={0.3}>
-                      <h2 className="font-display text-6xl md:text-7xl font-bold text-white mb-2">
+                    <RevealText delay={0.25}>
+                      <h2 
+                        className="font-display font-extrabold text-text-primary mb-6"
+                        style={{ fontSize: 'clamp(72px, 15vw, 140px)', lineHeight: 0.95, letterSpacing: '-0.03em' }}
+                      >
                         <CountUp value={analysis.totalSpent} prefix="$" duration={1500} />
                       </h2>
                     </RevealText>
                     {periodDateRange && (
-                      <RevealText delay={0.4}>
-                        <p className="text-gray-500 text-sm mb-4">{periodDateRange}</p>
+                      <RevealText delay={0.35}>
+                        <p className="text-base text-text-secondary font-medium mb-6">{periodDateRange}</p>
                       </RevealText>
                     )}
-                    <RevealText delay={0.5}>
-                      <p className="text-gray-400">
-                        That's about <span className="text-white font-semibold">${avgPerDay}/day</span> on AI
+                    <RevealText delay={0.45}>
+                      <p className="text-base text-text-secondary">
+                        That's about <span className="text-xl font-bold text-text-primary">${avgPerDay}/day</span> on AI
                       </p>
                     </RevealText>
                   </div>
@@ -297,27 +275,30 @@ export default function StoryDashboard({ data }) {
 
             case 'requests':
               return (
-                <Slide key={slide.id} bgGlow="radial-gradient(circle, rgba(168,85,247,0.2) 0%, transparent 70%)">
+                <Slide key={slide.id}>
                   <div className="text-center">
                     <RevealText>
-                      <div className="w-16 h-16 rounded-2xl bg-purple-500/20 flex items-center justify-center mx-auto mb-6">
-                        <Zap className="w-8 h-8 text-purple-400" />
+                      <div className="w-12 h-12 rounded-xl shadow-neu-sm flex items-center justify-center mx-auto mb-8 bg-neu-bg">
+                        <Zap className="w-5 h-5 text-text-muted" />
                       </div>
                     </RevealText>
-                    <RevealText delay={0.2}>
-                      <p className="text-gray-400 text-sm uppercase tracking-wider mb-2">You made</p>
+                    <RevealText delay={0.15}>
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted mb-6">You made</p>
                     </RevealText>
-                    <RevealText delay={0.3}>
-                      <h2 className="font-display text-6xl md:text-7xl font-bold text-white mb-4">
+                    <RevealText delay={0.25}>
+                      <h2 
+                        className="font-display font-extrabold text-text-primary mb-2"
+                        style={{ fontSize: 'clamp(72px, 15vw, 140px)', lineHeight: 0.95, letterSpacing: '-0.03em' }}
+                      >
                         <CountUp value={analysis.totalRequests} duration={1500} />
                       </h2>
                     </RevealText>
-                    <RevealText delay={0.4}>
-                      <p className="text-gray-500 text-sm uppercase tracking-wider mb-2">API calls</p>
+                    <RevealText delay={0.35}>
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted mb-8">API calls</p>
                     </RevealText>
-                    <RevealText delay={0.6}>
-                      <p className="text-gray-400 mt-4">
-                        That's roughly <span className="text-purple-400 font-semibold">{requestsPerDay} requests</span> every single day
+                    <RevealText delay={0.5}>
+                      <p className="text-base text-text-secondary">
+                        That's roughly <span className="text-xl font-bold text-text-primary">{requestsPerDay} requests</span> every day
                       </p>
                     </RevealText>
                   </div>
@@ -329,20 +310,23 @@ export default function StoryDashboard({ data }) {
                 <Slide key={slide.id}>
                   <div className="text-center">
                     <RevealText>
-                      <p className="text-gray-400 text-sm uppercase tracking-wider mb-2">Your go-to model</p>
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted mb-4">Your go-to model</p>
                     </RevealText>
-                    <RevealText delay={0.2}>
-                      <h2 className="font-display text-4xl md:text-5xl font-bold text-white mb-2">
+                    <RevealText delay={0.15}>
+                      <h2 
+                        className="font-display font-extrabold text-text-primary mb-4"
+                        style={{ fontSize: 'clamp(48px, 12vw, 96px)', lineHeight: 1, letterSpacing: '-0.02em' }}
+                      >
                         {topModel.name}
                       </h2>
                     </RevealText>
-                    <RevealText delay={0.3}>
-                      <p className="text-gray-400 mb-8">
-                        Used for <span className="text-accent-400 font-semibold">{topModel.usage}%</span> of your requests
+                    <RevealText delay={0.25}>
+                      <p className="text-base text-text-secondary mb-10">
+                        Used for <span className="text-3xl font-bold text-coral-500">{topModel.usage}%</span> of your requests
                       </p>
                     </RevealText>
-                    <RevealText delay={0.5}>
-                      <div className="flex justify-center">
+                    <RevealText delay={0.4}>
+                      <div className="flex justify-center p-6 rounded-2xl shadow-neu bg-neu-bg">
                         <PieChart data={analysis.models} size={280} totalCost={analysis.totalSpent} />
                       </div>
                     </RevealText>
@@ -355,22 +339,30 @@ export default function StoryDashboard({ data }) {
                 <Slide key={slide.id}>
                   <div className="text-center">
                     <RevealText>
-                      <div className="w-16 h-16 rounded-2xl bg-blue-500/20 flex items-center justify-center mx-auto mb-6">
-                        <Clock className="w-8 h-8 text-blue-400" />
+                      <div className="w-12 h-12 rounded-xl shadow-neu-sm flex items-center justify-center mx-auto mb-8 bg-neu-bg">
+                        <Clock className="w-5 h-5 text-text-muted" />
                       </div>
                     </RevealText>
-                    <RevealText delay={0.2}>
-                      <h2 className="font-display text-3xl md:text-4xl font-bold text-white mb-2">
-                        <span className="text-blue-400">{busiestDay.day}</span> was your power day
+                    <RevealText delay={0.15}>
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted mb-4">Your power day</p>
+                    </RevealText>
+                    <RevealText delay={0.25}>
+                      <h2 
+                        className="font-display font-extrabold text-text-primary mb-4"
+                        style={{ fontSize: 'clamp(64px, 14vw, 120px)', lineHeight: 1, letterSpacing: '-0.02em' }}
+                      >
+                        {busiestDay.day}
                       </h2>
                     </RevealText>
-                    <RevealText delay={0.3}>
-                      <p className="text-gray-400 mb-8">
-                        {busiestDay.requests} requests • ${busiestDay.cost} spent
+                    <RevealText delay={0.35}>
+                      <p className="text-base text-text-secondary mb-10">
+                        <span className="text-xl font-bold text-text-primary">{busiestDay.requests}</span> requests
+                        <span className="mx-3 text-text-muted">•</span>
+                        <span className="text-xl font-bold text-text-primary">${busiestDay.cost}</span> spent
                       </p>
                     </RevealText>
                     <RevealText delay={0.5}>
-                      <div className="bg-dark-800/50 rounded-2xl p-6 border border-white/5">
+                      <div className="shadow-neu rounded-2xl p-6 bg-neu-bg">
                         <UsageChart data={analysis.weeklyUsage} />
                       </div>
                     </RevealText>
@@ -380,27 +372,31 @@ export default function StoryDashboard({ data }) {
 
             case 'thinking':
               return (
-                <Slide key={slide.id} bgGlow="radial-gradient(circle, rgba(245,158,11,0.2) 0%, transparent 70%)">
+                <Slide key={slide.id}>
                   <div className="text-center">
                     <RevealText>
-                      <div className="w-16 h-16 rounded-2xl bg-amber-500/20 flex items-center justify-center mx-auto mb-6">
-                        <Brain className="w-8 h-8 text-amber-400" />
+                      <div className="w-12 h-12 rounded-xl shadow-neu-sm flex items-center justify-center mx-auto mb-8 bg-neu-bg">
+                        <Brain className="w-5 h-5 text-text-muted" />
                       </div>
                     </RevealText>
-                    <RevealText delay={0.2}>
-                      <p className="text-gray-400 text-sm uppercase tracking-wider mb-2">Deep thinking mode</p>
+                    <RevealText delay={0.15}>
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted mb-6">Deep thinking mode</p>
                     </RevealText>
-                    <RevealText delay={0.3}>
-                      <h2 className="font-display text-5xl md:text-6xl font-bold text-white mb-4">
+                    <RevealText delay={0.25}>
+                      <h2 
+                        className="font-display font-extrabold text-text-primary mb-2"
+                        style={{ fontSize: 'clamp(72px, 15vw, 140px)', lineHeight: 0.95, letterSpacing: '-0.03em' }}
+                      >
                         <CountUp value={analysis.extendedThinking.count} duration={1200} />
                       </h2>
                     </RevealText>
-                    <RevealText delay={0.4}>
-                      <p className="text-gray-500 text-sm uppercase tracking-wider mb-4">times used</p>
+                    <RevealText delay={0.35}>
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted mb-8">times used</p>
                     </RevealText>
-                    <RevealText delay={0.6}>
-                      <p className="text-gray-400">
-                        Costing <span className="text-amber-400 font-semibold">${analysis.extendedThinking.cost}</span> ({analysis.extendedThinking.percentage}% of total)
+                    <RevealText delay={0.5}>
+                      <p className="text-base text-text-secondary">
+                        Costing <span className="text-xl font-bold text-coral-500">${analysis.extendedThinking.cost}</span>
+                        <span className="text-text-muted ml-2">({analysis.extendedThinking.percentage}% of total)</span>
                       </p>
                     </RevealText>
                   </div>
@@ -411,51 +407,43 @@ export default function StoryDashboard({ data }) {
               const rec = slide.data
               const isCollected = collectedSavings >= (slide.index + 1) * rec.savings
               return (
-                <Slide
-                  key={slide.id}
-                  bgGlow={`radial-gradient(circle, rgba(34,197,94,0.15) 0%, transparent 70%)`}
-                >
+                <Slide key={slide.id}>
                   <div className="text-center">
                     <RevealText>
-                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/20 text-green-400 text-sm font-medium mb-6">
-                        <Target className="w-4 h-4" />
+                      <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full shadow-neu text-text-secondary text-base font-semibold mb-8 bg-neu-bg">
+                        <Target className="w-5 h-5" />
                         Optimization #{slide.index + 1}
                       </div>
                     </RevealText>
                     <RevealText delay={0.2}>
-                      <h2 className="font-display text-3xl md:text-4xl font-bold text-white mb-4">
-                        {rec.title}
-                      </h2>
+                      <h2 className="font-display text-4xl md:text-5xl font-bold text-text-primary mb-4">{rec.title}</h2>
                     </RevealText>
                     <RevealText delay={0.3}>
-                      <p className="text-gray-400 mb-8">{rec.description}</p>
+                      <p className="text-text-secondary text-lg mb-8 max-w-md mx-auto">{rec.description}</p>
                     </RevealText>
                     <RevealText delay={0.5}>
-                      <div className="inline-block">
-                        <motion.button
-                          onClick={() => !isCollected && collectSavings(rec.savings)}
-                          disabled={isCollected}
-                          className={`
-                            px-8 py-4 rounded-2xl font-semibold text-lg
-                            transition-all duration-300
-                            ${isCollected
-                              ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                              : 'bg-gradient-to-r from-green-600 to-emerald-500 text-white shadow-lg shadow-green-500/25 hover:shadow-green-500/40'
-                            }
-                          `}
-                          whileHover={!isCollected ? { scale: 1.05 } : {}}
-                          whileTap={!isCollected ? { scale: 0.95 } : {}}
-                        >
-                          {isCollected ? (
-                            <span className="flex items-center gap-2">
-                              <CheckCircle2 className="w-5 h-5" />
-                              Collected +${rec.savings}/mo
-                            </span>
-                          ) : (
-                            <span>Collect +${rec.savings}/mo</span>
-                          )}
-                        </motion.button>
-                      </div>
+                      <motion.button
+                        onClick={() => !isCollected && collectSavings(rec.savings)}
+                        disabled={isCollected}
+                        className={`
+                          px-10 py-5 rounded-2xl font-bold text-xl transition-all duration-300
+                          ${isCollected
+                            ? 'shadow-neu-inset bg-neu-bg text-text-primary'
+                            : 'shadow-neu bg-gradient-to-br from-coral-400 to-coral-500 text-white'
+                          }
+                        `}
+                        whileHover={!isCollected ? { scale: 1.02 } : {}}
+                        whileTap={!isCollected ? { scale: 0.98 } : {}}
+                      >
+                        {isCollected ? (
+                          <span className="flex items-center gap-3">
+                            <CheckCircle2 className="w-6 h-6" />
+                            Collected +${rec.savings}/mo
+                          </span>
+                        ) : (
+                          <span className="text-2xl">Collect +${rec.savings}/mo</span>
+                        )}
+                      </motion.button>
                     </RevealText>
                   </div>
                 </Slide>
@@ -463,40 +451,45 @@ export default function StoryDashboard({ data }) {
 
             case 'summary':
               return (
-                <Slide key={slide.id} bgGlow="radial-gradient(circle, rgba(217,70,239,0.2) 0%, transparent 70%)">
+                <Slide key={slide.id}>
                   <div className="text-center">
                     <RevealText>
-                      <Sparkles className="w-12 h-12 text-accent-400 mx-auto mb-6" />
+                      <div className="w-12 h-12 rounded-xl shadow-neu-sm flex items-center justify-center mx-auto mb-8 bg-neu-bg">
+                        <Sparkles className="w-5 h-5 text-text-muted" />
+                      </div>
                     </RevealText>
-                    <RevealText delay={0.2}>
-                      <p className="text-gray-400 text-sm uppercase tracking-wider mb-2">Your potential savings</p>
+                    <RevealText delay={0.15}>
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted mb-6">Your potential savings</p>
                     </RevealText>
-                    <RevealText delay={0.3}>
-                      <h2 className="font-display text-6xl md:text-7xl font-bold text-gradient mb-2">
+                    <RevealText delay={0.25}>
+                      <h2 
+                        className="font-display font-extrabold mb-2"
+                        style={{ fontSize: 'clamp(72px, 15vw, 140px)', lineHeight: 0.95, letterSpacing: '-0.03em', color: '#E85555' }}
+                      >
                         ${collectedSavings > 0 ? collectedSavings : analysis.potentialSavings}
                       </h2>
                     </RevealText>
-                    <RevealText delay={0.4}>
-                      <p className="text-gray-500 text-sm uppercase tracking-wider mb-8">per month</p>
+                    <RevealText delay={0.35}>
+                      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-text-muted mb-12">per month</p>
                     </RevealText>
                     <RevealText delay={0.6}>
-                      <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                      <div className="flex flex-col sm:flex-row gap-4 justify-center">
                         <motion.button
                           onClick={handleExport}
-                          className="px-6 py-3 rounded-xl bg-gradient-to-r from-accent-600 to-accent-500 text-white font-medium shadow-lg shadow-accent-500/25 flex items-center justify-center gap-2"
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
+                          className="neu-btn-primary"
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
                         >
-                          <Download className="w-4 h-4" />
+                          <Download className="w-5 h-5" />
                           Export Report
                         </motion.button>
                         <motion.button
                           onClick={() => navigate('/dashboard')}
-                          className="px-6 py-3 rounded-xl bg-dark-700 border border-white/10 text-gray-300 font-medium flex items-center justify-center gap-2 hover:border-white/20"
-                          whileHover={{ scale: 1.05 }}
-                          whileTap={{ scale: 0.95 }}
+                          className="neu-btn"
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
                         >
-                          <LayoutDashboard className="w-4 h-4" />
+                          <LayoutDashboard className="w-5 h-5" />
                           Full Dashboard
                         </motion.button>
                       </div>
@@ -504,9 +497,9 @@ export default function StoryDashboard({ data }) {
                     <RevealText delay={0.8}>
                       <button
                         onClick={() => scrollToSlide(0)}
-                        className="mt-8 text-gray-500 hover:text-gray-300 text-sm flex items-center gap-1 mx-auto"
+                        className="mt-10 text-text-secondary hover:text-text-primary text-base flex items-center gap-2 mx-auto transition-colors"
                       >
-                        <RotateCcw className="w-3 h-3" />
+                        <RotateCcw className="w-4 h-4" />
                         Start over
                       </button>
                     </RevealText>
@@ -520,7 +513,7 @@ export default function StoryDashboard({ data }) {
         })}
       </div>
 
-      {/* Floating savings counter (wow factor) */}
+      {/* Floating savings counter */}
       <AnimatePresence>
         {collectedSavings > 0 && (
           <motion.div
@@ -528,11 +521,9 @@ export default function StoryDashboard({ data }) {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             className="fixed top-6 right-6 z-50"
           >
-            <div className="px-4 py-2 rounded-xl bg-green-500/20 backdrop-blur-sm border border-green-500/30 flex items-center gap-2">
-              <TrendingDown className="w-4 h-4 text-green-400" />
-              <span className="text-green-400 font-semibold">
-                ${collectedSavings}/mo saved
-              </span>
+            <div className="px-4 py-2 rounded-xl shadow-neu flex items-center gap-2 bg-neu-bg">
+              <TrendingDown className="w-4 h-4 text-text-secondary" />
+              <span className="text-text-primary font-semibold">${collectedSavings}/mo saved</span>
             </div>
           </motion.div>
         )}
@@ -547,7 +538,7 @@ export default function StoryDashboard({ data }) {
             exit={{ opacity: 0, y: -100 }}
             className="fixed top-1/2 left-1/2 -translate-x-1/2 z-50 pointer-events-none"
           >
-            <span className="text-green-400 font-bold text-2xl">+${analysis.recommendations[0]?.savings || 0}</span>
+            <span className="text-text-primary font-bold text-2xl">+${analysis.recommendations[0]?.savings || 0}</span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -558,10 +549,10 @@ export default function StoryDashboard({ data }) {
           <button
             key={i}
             onClick={() => scrollToSlide(i)}
-            className={`w-2 h-2 rounded-full transition-all duration-300 ${
+            className={`w-2.5 h-2.5 rounded-full transition-all duration-300 ${
               currentSlide === i
-                ? 'bg-accent-400 scale-125'
-                : 'bg-white/20 hover:bg-white/40'
+                ? 'bg-text-primary shadow-sm'
+                : 'bg-neu-shadow hover:bg-text-muted'
             }`}
           />
         ))}
@@ -575,20 +566,17 @@ export default function StoryDashboard({ data }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => scrollToSlide(currentSlide + 1)}
-            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-1 text-gray-500 hover:text-white transition-colors"
+            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-40 flex flex-col items-center gap-1 text-text-muted hover:text-text-primary transition-colors"
           >
             <span className="text-xs">Scroll</span>
-            <motion.div
-              animate={{ y: [0, 5, 0] }}
-              transition={{ duration: 1.5, repeat: Infinity }}
-            >
+            <motion.div animate={{ y: [0, 5, 0] }} transition={{ duration: 1.5, repeat: Infinity }}>
               <ChevronDown className="w-5 h-5" />
             </motion.div>
           </motion.button>
         )}
       </AnimatePresence>
 
-      {/* Back to top indicator (when scrolled) */}
+      {/* Back to top */}
       <AnimatePresence>
         {currentSlide > 0 && (
           <motion.button
@@ -596,7 +584,7 @@ export default function StoryDashboard({ data }) {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => scrollToSlide(currentSlide - 1)}
-            className="fixed top-8 left-1/2 -translate-x-1/2 z-40 text-gray-500 hover:text-white transition-colors"
+            className="fixed top-8 left-1/2 -translate-x-1/2 z-40 text-text-muted hover:text-text-primary transition-colors"
           >
             <ChevronUp className="w-5 h-5" />
           </motion.button>
@@ -612,10 +600,9 @@ export default function StoryDashboard({ data }) {
             exit={{ opacity: 0 }}
             transition={{ delay: 2 }}
             onClick={() => navigate('/dashboard')}
-            className="fixed bottom-8 right-6 z-40 px-4 py-2 rounded-lg bg-dark-800/80 backdrop-blur-sm border border-white/10 text-gray-400 text-sm hover:text-white hover:border-white/20 transition-all flex items-center gap-2"
+            className="fixed bottom-8 right-6 z-40 px-4 py-2 rounded-xl shadow-neu text-text-muted text-sm hover:text-text-primary transition-colors flex items-center gap-2 bg-neu-bg"
           >
             Skip to Dashboard
-            <ArrowRight className="w-3 h-3" />
           </motion.button>
         )}
       </AnimatePresence>

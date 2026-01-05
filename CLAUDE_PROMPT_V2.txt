@@ -1,0 +1,59 @@
+Fix these issues in the AI Usage Optimizer:
+
+## 1. CHART OVERFLOW ISSUES
+
+### PieChart.jsx
+- Container size (line 80-81) is hardcoded to size+120, size+40
+- External tooltip (line 208-261) positioned at tooltipPosition.x/y can overflow container
+- FIX: Add overflow:visible to parent container OR reposition tooltip to stay within bounds
+- Ensure tooltip doesn't get clipped when hovering segments near edges
+
+### UsageChart.jsx  
+- Tooltip (line 54-66) uses "bottom-full mb-2" which clips at top of container
+- Parent TiltCard has overflow:hidden
+- FIX: Either change tooltip position to appear below bars, OR add overflow:visible to chart container, OR use a portal for tooltip
+
+## 2. NON-FUNCTIONAL BUTTONS
+
+### DashboardPage.jsx - Fix these:
+
+a) STAT CARDS (line 357-378):
+- ArrowUpRight icon suggests clickable but does nothing
+- FIX: Either remove the arrow icon OR make cards clickable to show detailed breakdown modal/view
+
+b) "LEARN MORE" on recommendations (line 532-538):
+- Shows "Learn more >" but has no onClick
+- FIX: Add onClick that either:
+  - Opens modal with detailed implementation steps
+  - Expands the card to show more info
+  - Links to external resource
+
+c) TOP STAT CARDS:
+- They look clickable but aren't
+- FIX: Add onClick to navigate to detailed view OR show tooltip with more data
+
+## 3. MAKE DATA FULLY DYNAMIC
+
+### Current issues:
+- weeklyUsage in UploadPage.jsx (line 302-310) is calculated from fake percentages, not real dates
+- recommendations savings are just percentages of total, not real analysis
+
+### FIX in UploadPage.jsx analyzeData():
+a) Parse actual dates from CSV (look for "date", "timestamp", "created_at" columns)
+b) Group requests by day of week from real dates
+c) Calculate actual daily costs from real data
+d) Make recommendations smarter:
+   - If >50% is one expensive model, recommend cheaper alternative
+   - If duplicate queries found, recommend caching
+   - Base savings on actual model distribution, not fixed %
+
+## SUMMARY OF CHANGES NEEDED:
+
+Files to modify:
+1. PieChart.jsx - Fix tooltip overflow
+2. UsageChart.jsx - Fix tooltip clipping  
+3. DashboardPage.jsx - Make buttons functional, add click handlers
+4. UploadPage.jsx - Parse real dates, calculate real weekly data
+
+Keep existing UI/animations. Only fix functionality.
+

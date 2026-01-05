@@ -1,0 +1,23 @@
+Fix these 4 issues in the AI usage optimizer:
+
+1. MAX MODE DETECTION (UploadPage.jsx, analyzeData function):
+   - Parse "Max Mode" column (case-insensitive), count where value="extended"
+   - Calculate extra cost: sum costs where Max Mode = "extended"
+   - Add to return: extendedThinking: { count, cost, percentage }
+
+2. INPUT VALIDATION (UploadPage.jsx, handleAnalyze function):
+   - Reject files > 50MB
+   - Validate CSV has headers
+   - Require at least one column: "cost" or "model" (case-insensitive)
+   - Show errors via existing setError() state
+
+3. PDF EXPORT (DashboardPage.jsx, handleExport function):
+   - Replace JSON export with PDF using jspdf
+   - Include: title, summary stats, model list, recommendations, date
+   - Download as .pdf file
+
+4. WEEKLY CHART (UsageChart.jsx):
+   - Fix bars not rendering - ensure height calculations work
+
+Keep UI unchanged. Test with Cursor CSV format.
+

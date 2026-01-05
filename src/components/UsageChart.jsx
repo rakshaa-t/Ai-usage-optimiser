@@ -1,142 +1,198 @@
-import { useState, useRef, useCallback } from 'react'
-import { motion } from 'framer-motion'
-import Tooltip, { TooltipContent } from './Tooltip'
+import { useState, useCallback } from 'react'
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  ResponsiveContainer,
+  Cell,
+  Tooltip,
+} from 'recharts'
 
-export default function UsageChart({ data }) {
-  const [hoveredIndex, setHoveredIndex] = useState(null)
-  const [tooltipAnchor, setTooltipAnchor] = useState(null)
-  const containerRef = useRef(null)
+// Custom tooltip for neumorphic style
+const CustomTooltip = ({ active, payload, label }) => {
+  if (!active || !payload || !payload.length) return null
+
+  const data = payload[0].payload
+
+  return (
+    <div
+      className="bg-neu-bg rounded-neu px-4 py-3"
+      style={{
+        boxShadow: '4px 4px 8px #d1cec9, -4px -4px 8px #ffffff',
+      }}
+    >
+      <p className="text-text-muted text-xs mb-1">{label}</p>
+      <p className="text-text-primary font-display font-bold text-lg">
+        {data.requests?.toLocaleString() || 0}
+      </p>
+      <p className="text-text-muted text-xs">requests</p>
+      {data.cost !== undefined && (
+        <p className="text-coral-500 font-semibold text-sm mt-1">
+          ${typeof data.cost === 'number' ? data.cost.toFixed(2) : data.cost}
+        </p>
+      )}
+    </div>
+  )
+}
+
+// Custom bar shape with rounded top corners
+const RoundedBar = (props) => {
+  const { x, y, width, height, fill, isHovered } = props
+  const radius = 6
+
+  if (height <= 0) return null
+
+  // Only round top corners
+  const path = `
+    M ${x},${y + height}
+    L ${x},${y + radius}
+    Q ${x},${y} ${x + radius},${y}
+    L ${x + width - radius},${y}
+    Q ${x + width},${y} ${x + width},${y + radius}
+    L ${x + width},${y + height}
+    Z
+  `
+
+  return (
+    <path
+      d={path}
+      fill={fill}
+      style={{
+        filter: isHovered ? `drop-shadow(0 4px 8px ${fill}50)` : 'none',
+        transition: 'filter 0.2s ease-out',
+      }}
+    />
+  )
+}
+
+export default function UsageChart({ data, height = 220 }) {
+  const [activeIndex, setActiveIndex] = useState(null)
 
   // Handle empty or invalid data
   if (!data || data.length === 0) {
     return (
-      <div className="h-48 flex items-center justify-center text-gray-500">
+      <div
+        className="flex items-center justify-center text-text-muted bg-neu-bg rounded-neu"
+        style={{
+          height,
+          boxShadow: 'inset 4px 4px 8px #d1cec9, inset -4px -4px 8px #ffffff',
+        }}
+      >
         No usage data available
       </div>
     )
   }
 
-  const maxRequests = Math.max(...data.map(d => d.requests || 0), 1)
-  const chartHeight = 180
-
-  const handleBarHover = useCallback((index, event) => {
-    const barElement = event.currentTarget
-    const rect = barElement.getBoundingClientRect()
-
-    setHoveredIndex(index)
-    setTooltipAnchor({
-      x: rect.left + rect.width / 2,
-      y: rect.top,
-      width: rect.width,
-      height: rect.height,
-    })
+  const onBarEnter = useCallback((_, index) => {
+    setActiveIndex(index)
   }, [])
 
-  const handleMouseLeave = useCallback(() => {
-    setHoveredIndex(null)
-    setTooltipAnchor(null)
+  const onBarLeave = useCallback(() => {
+    setActiveIndex(null)
   }, [])
 
   return (
-    <div ref={containerRef} className="relative">
-      {/* Y-axis labels */}
-      <div className="absolute left-0 top-0 h-[180px] flex flex-col justify-between text-xs text-gray-500 pr-2">
-        <span>{maxRequests}</span>
-        <span>{Math.round(maxRequests * 0.5)}</span>
-        <span>0</span>
-      </div>
+    <div
+      className="bg-neu-bg rounded-neu p-4"
+      style={{
+        boxShadow: 'inset 4px 4px 8px #d1cec9, inset -4px -4px 8px #ffffff',
+      }}
+    >
+      <ResponsiveContainer width="100%" height={height}>
+        <BarChart
+          data={data}
+          margin={{ top: 20, right: 20, bottom: 5, left: 0 }}
+          barCategoryGap="20%"
+        >
+          <CartesianGrid
+            strokeDasharray="3 3"
+            stroke="#d1cec9"
+            vertical={false}
+          />
+          <XAxis
+            dataKey="day"
+            axisLine={false}
+            tickLine={false}
+            tick={{ fill: '#9B9B9B', fontSize: 12 }}
+            dy={10}
+          />
+          <YAxis
+            axisLine={false}
+            tickLine={false}
+            tick={{ fill: '#9B9B9B', fontSize: 12 }}
+            tickFormatter={(value) => {
+              if (value >= 1000) return `${(value / 1000).toFixed(0)}k`
+              return value
+            }}
+            dx={-5}
+          />
+          <Tooltip
+            content={<CustomTooltip />}
+            cursor={{ fill: 'rgba(209, 206, 201, 0.3)' }}
+          />
+          <Bar
+            dataKey="requests"
+            radius={[6, 6, 0, 0]}
+            shape={(props) => (
+              <RoundedBar {...props} isHovered={activeIndex === props.index} />
+            )}
+            onMouseEnter={onBarEnter}
+            onMouseLeave={onBarLeave}
+            animationBegin={0}
+            animationDuration={800}
+            animationEasing="ease-out"
+          >
+            {data.map((entry, index) => (
+              <Cell
+                key={`cell-${index}`}
+                fill={activeIndex === index ? '#FF6B6B' : '#4ECDC4'}
+                style={{
+                  cursor: 'pointer',
+                  transition: 'fill 0.2s ease-out',
+                }}
+              />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
 
-      {/* Chart container */}
-      <div className="ml-8">
-        {/* Grid lines */}
-        <div className="absolute left-8 right-0 top-0 h-[180px] flex flex-col justify-between pointer-events-none">
-          {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              className="border-t border-white/5 w-full"
-            />
-          ))}
-        </div>
-
-        {/* Bars */}
-        <div className="flex items-end justify-between gap-2 h-[180px]">
-          {data.map((item, index) => {
-            const barHeight = ((item.requests || 0) / maxRequests) * chartHeight
-            const isHovered = hoveredIndex === index
-
-            return (
-              <div
-                key={item.day}
-                className="flex-1 flex flex-col items-center relative"
-              >
-                {/* Bar container */}
-                <div
-                  className="w-full flex items-end justify-center"
-                  style={{ height: chartHeight }}
-                >
-                  <motion.div
-                    className="w-full max-w-[40px] rounded-t-lg cursor-pointer relative overflow-hidden"
-                    initial={{ height: 0 }}
-                    animate={{ height: barHeight }}
-                    transition={{
-                      duration: 0.8,
-                      delay: index * 0.08,
-                      type: 'spring',
-                      stiffness: 80,
-                      damping: 15,
-                    }}
-                    style={{
-                      background: isHovered
-                        ? 'linear-gradient(180deg, #F97CF5 0%, #A855F7 100%)'
-                        : 'linear-gradient(180deg, rgba(249, 124, 245, 0.7) 0%, rgba(168, 85, 247, 0.7) 100%)',
-                      boxShadow: isHovered
-                        ? '0 0 20px rgba(249, 124, 245, 0.5), 0 0 40px rgba(249, 124, 245, 0.2)'
-                        : 'none',
-                      minHeight: item.requests > 0 ? '4px' : '0px',
-                    }}
-                    onMouseEnter={(e) => handleBarHover(index, e)}
-                    onMouseLeave={handleMouseLeave}
-                    whileHover={{ scale: 1.08 }}
-                  >
-                    {/* Shine effect */}
-                    <div
-                      className="absolute inset-0 pointer-events-none"
-                      style={{
-                        background: 'linear-gradient(180deg, rgba(255,255,255,0.25) 0%, transparent 40%)',
-                        opacity: isHovered ? 1 : 0.6,
-                      }}
-                    />
-                  </motion.div>
-                </div>
-
-                {/* Day label */}
-                <span className={`text-xs mt-2 transition-colors duration-200 ${
-                  isHovered ? 'text-white font-medium' : 'text-gray-500'
-                }`}>
-                  {item.day}
-                </span>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Portal Tooltip */}
-      <Tooltip
-        isVisible={hoveredIndex !== null}
-        anchorRect={tooltipAnchor}
-        position="top"
+// Compact variant for smaller spaces
+export function UsageChartCompact({ data, height = 120 }) {
+  if (!data || data.length === 0) {
+    return (
+      <div
+        className="flex items-center justify-center text-text-muted text-sm"
+        style={{ height }}
       >
-        {hoveredIndex !== null && (
-          <TooltipContent>
-            <div className="text-center">
-              <p className="text-white text-sm font-semibold">{data[hoveredIndex].requests.toLocaleString()}</p>
-              <p className="text-gray-400 text-xs">requests</p>
-              <p className="text-accent-400 text-xs font-medium mt-1">${data[hoveredIndex].cost}</p>
-            </div>
-          </TooltipContent>
-        )}
-      </Tooltip>
+        No data
+      </div>
+    )
+  }
+
+  const maxRequests = Math.max(...data.map(d => d.requests || 0), 1)
+
+  return (
+    <div className="flex items-end gap-1" style={{ height }}>
+      {data.map((item, index) => {
+        const barHeight = ((item.requests || 0) / maxRequests) * (height - 24)
+        return (
+          <div key={item.day} className="flex-1 flex flex-col items-center">
+            <div
+              className="w-full rounded-t transition-all duration-200 hover:bg-coral-500"
+              style={{
+                height: Math.max(barHeight, item.requests > 0 ? 4 : 0),
+                backgroundColor: '#4ECDC4',
+              }}
+            />
+            <span className="text-text-muted text-xs mt-1">{item.day}</span>
+          </div>
+        )
+      })}
     </div>
   )
 }

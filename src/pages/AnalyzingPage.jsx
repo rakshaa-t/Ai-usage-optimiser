@@ -4,10 +4,10 @@ import { motion } from 'framer-motion'
 import { Brain, Zap, BarChart3, Lightbulb } from 'lucide-react'
 
 const analysisSteps = [
-  { icon: Brain, label: 'Processing data...', color: '#F97CF5' },
-  { icon: BarChart3, label: 'Analyzing patterns...', color: '#A855F7' },
-  { icon: Zap, label: 'Calculating costs...', color: '#8B5CF6' },
-  { icon: Lightbulb, label: 'Generating insights...', color: '#7C3AED' },
+  { icon: Brain, label: 'Processing data...', color: '#FF6B6B' },
+  { icon: BarChart3, label: 'Analyzing patterns...', color: '#4ECDC4' },
+  { icon: Zap, label: 'Calculating costs...', color: '#45B7D1' },
+  { icon: Lightbulb, label: 'Generating insights...', color: '#96CEB4' },
 ]
 
 export default function AnalyzingPage({ file, onAnalysisComplete }) {
@@ -44,40 +44,42 @@ export default function AnalyzingPage({ file, onAnalysisComplete }) {
   }, [navigate])
 
   return (
-    <div className="relative min-h-screen flex flex-col items-center justify-center px-6">
+    <div className="relative min-h-screen flex flex-col items-center justify-center px-6 bg-neu-bg">
       {/* Main animation container */}
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         className="text-center"
       >
-        {/* Animated orb */}
+        {/* Neumorphic animated container */}
         <div className="relative w-48 h-48 mx-auto mb-12">
-          {/* Outer ring */}
+          {/* Outer neumorphic ring */}
+          <div
+            className="absolute inset-0 rounded-full bg-neu-bg"
+            style={{
+              boxShadow: '8px 8px 16px #d1cec9, -8px -8px 16px #ffffff',
+            }}
+          />
+
+          {/* Inner inset ring */}
+          <div
+            className="absolute inset-6 rounded-full bg-neu-bg"
+            style={{
+              boxShadow: 'inset 4px 4px 8px #d1cec9, inset -4px -4px 8px #ffffff',
+            }}
+          />
+
+          {/* Rotating accent ring */}
           <motion.div
-            className="absolute inset-0 rounded-full border-2 border-accent-500/30"
+            className="absolute inset-3 rounded-full"
+            style={{
+              border: '2px dashed #d1cec9',
+            }}
             animate={{ rotate: 360 }}
             transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
           />
-          
-          {/* Middle ring */}
-          <motion.div
-            className="absolute inset-4 rounded-full border-2 border-accent-400/40"
-            animate={{ rotate: -360 }}
-            transition={{ duration: 6, repeat: Infinity, ease: 'linear' }}
-          />
-          
-          {/* Inner glow */}
-          <motion.div
-            className="absolute inset-8 rounded-full bg-gradient-to-br from-accent-500/20 to-accent-600/20"
-            animate={{
-              scale: [1, 1.1, 1],
-              opacity: [0.5, 0.8, 0.5],
-            }}
-            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
-          />
-          
-          {/* Center icon */}
+
+          {/* Center icon container */}
           <motion.div
             className="absolute inset-0 flex items-center justify-center"
             key={currentStep}
@@ -88,42 +90,43 @@ export default function AnalyzingPage({ file, onAnalysisComplete }) {
             {(() => {
               const Icon = analysisSteps[currentStep].icon
               return (
-                <div 
-                  className="w-16 h-16 rounded-2xl flex items-center justify-center"
-                  style={{ 
-                    backgroundColor: `${analysisSteps[currentStep].color}20`,
-                    boxShadow: `0 0 40px ${analysisSteps[currentStep].color}40`
+                <div
+                  className="w-16 h-16 rounded-2xl flex items-center justify-center bg-neu-bg"
+                  style={{
+                    boxShadow: `4px 4px 8px #d1cec9, -4px -4px 8px #ffffff, 0 0 20px ${analysisSteps[currentStep].color}30`,
                   }}
                 >
-                  <Icon 
-                    className="w-8 h-8" 
+                  <Icon
+                    className="w-8 h-8"
                     style={{ color: analysisSteps[currentStep].color }}
                   />
                 </div>
               )
             })()}
           </motion.div>
-          
-          {/* Particles */}
+
+          {/* Subtle dots around the circle */}
           {[...Array(8)].map((_, i) => (
             <motion.div
               key={i}
-              className="absolute w-2 h-2 rounded-full bg-accent-400"
+              className="absolute w-2 h-2 rounded-full"
               style={{
                 top: '50%',
                 left: '50%',
+                backgroundColor: analysisSteps[currentStep].color,
+                opacity: 0.4,
               }}
               animate={{
-                x: [0, Math.cos((i * Math.PI) / 4) * 80],
-                y: [0, Math.sin((i * Math.PI) / 4) * 80],
-                opacity: [0, 1, 0],
-                scale: [0, 1, 0],
+                x: Math.cos((i * Math.PI) / 4) * 72 - 4,
+                y: Math.sin((i * Math.PI) / 4) * 72 - 4,
+                opacity: [0.2, 0.6, 0.2],
               }}
               transition={{
-                duration: 2,
-                repeat: Infinity,
-                delay: i * 0.2,
-                ease: 'easeOut',
+                opacity: {
+                  duration: 2,
+                  repeat: Infinity,
+                  delay: i * 0.15,
+                },
               }}
             />
           ))}
@@ -134,21 +137,29 @@ export default function AnalyzingPage({ file, onAnalysisComplete }) {
           key={currentStep}
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="font-display text-2xl font-semibold text-white mb-4"
+          className="font-display text-2xl font-semibold text-text-primary mb-4"
         >
           {analysisSteps[currentStep].label}
         </motion.h2>
 
-        {/* Progress bar */}
+        {/* Neumorphic progress bar */}
         <div className="w-64 mx-auto">
-          <div className="h-2 bg-dark-600 rounded-full overflow-hidden">
+          <div
+            className="h-3 rounded-full overflow-hidden bg-neu-bg"
+            style={{
+              boxShadow: 'inset 3px 3px 6px #d1cec9, inset -3px -3px 6px #ffffff',
+            }}
+          >
             <motion.div
-              className="h-full bg-gradient-to-r from-accent-600 to-accent-400 rounded-full"
-              style={{ width: `${progress}%` }}
+              className="h-full rounded-full"
+              style={{
+                width: `${progress}%`,
+                background: `linear-gradient(90deg, ${analysisSteps[currentStep].color}, ${analysisSteps[Math.min(currentStep + 1, analysisSteps.length - 1)].color})`,
+              }}
               transition={{ duration: 0.1 }}
             />
           </div>
-          <p className="text-gray-500 text-sm mt-3">{progress}% complete</p>
+          <p className="text-text-muted text-sm mt-3">{progress}% complete</p>
         </div>
 
         {/* File info */}
@@ -157,11 +168,29 @@ export default function AnalyzingPage({ file, onAnalysisComplete }) {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.5 }}
-            className="text-gray-500 text-sm mt-8"
+            className="text-text-muted text-sm mt-8"
           >
             Analyzing: {file.name}
           </motion.p>
         )}
+
+        {/* Step indicators */}
+        <div className="flex justify-center gap-3 mt-8">
+          {analysisSteps.map((step, index) => (
+            <div
+              key={index}
+              className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                index <= currentStep ? 'scale-100' : 'scale-75 opacity-40'
+              }`}
+              style={{
+                backgroundColor: index <= currentStep ? step.color : '#d1cec9',
+                boxShadow: index <= currentStep
+                  ? `0 0 8px ${step.color}60`
+                  : 'none',
+              }}
+            />
+          ))}
+        </div>
       </motion.div>
     </div>
   )
